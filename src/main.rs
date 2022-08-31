@@ -1,7 +1,7 @@
 use axum::{
     extract::Path,
     http::StatusCode,
-    response::{IntoResponse, Html},
+    response::{Html, IntoResponse},
     routing::{get, post},
     Extension, Router,
 };
