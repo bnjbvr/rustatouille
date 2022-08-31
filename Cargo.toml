@@ -1,0 +1,15 @@
+[package]
+name = "statoo"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+axum = "0.5.15"
+chrono = { version = "0.4.22", features = ["serde"] }
+dotenvy = "0.15.3"
+serde = { version = "1.0.144", features = ["derive"] }
+tokio = { version = "1.20.1", features = ["full"] }
+tracing = "0.1.36"
+tracing-subscriber = "0.3.15"
