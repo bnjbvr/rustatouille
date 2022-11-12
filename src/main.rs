@@ -13,7 +13,7 @@ mod admin;
 
 const DEFAULT_PORT: u16 = 3000;
 const DEFAULT_HOST: Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
-const DEFAULT_CACHE_DIR: &str = "/tmp/statoo_cache";
+const DEFAULT_CACHE_DIR: &str = "/tmp/rustatouille_cache";
 
 pub(crate) struct AppConfig {
     /// which port the app is listening on
