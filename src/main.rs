@@ -1,3 +1,4 @@
+use anyhow::Context as _;
 use axum::{
     extract::Path,
     http::StatusCode,
@@ -11,10 +12,6 @@ use tracing as log;
 
 mod admin;
 
-const DEFAULT_PORT: u16 = 3000;
-const DEFAULT_HOST: Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
-const DEFAULT_CACHE_DIR: &str = "/tmp/rustatouille_cache";
-
 pub(crate) struct AppConfig {
     /// which port the app is listening on
     port: u16,
@@ -26,68 +23,40 @@ pub(crate) struct AppConfig {
     cache_dir: PathBuf,
 }
 
-fn parse_app_config() -> AppConfig {
+fn parse_app_config() -> anyhow::Result<AppConfig> {
     // override environment variables with contents of .env file, unless they were already set
     // explicitly.
     dotenvy::dotenv().ok();
 
-    let port = match env::var("PORT") {
-        Ok(port_str) => {
-            if let Ok(val) = port_str.parse() {
-                val
-            } else {
-                log::error!("invalid port number: must be between 0 and 65535 - exiting");
-                std::process::exit(1);
-            }
-        }
-        Err(_) => {
-            // use default
-            DEFAULT_PORT
-        }
-    };
+    let port = env::var("PORT")
+        .context("missing PORT variable")?
+        .parse()
+        .context("PORT isn't a u16 value")?;
 
-    let interface_ipv4 = match env::var("HOST") {
-        Ok(interface_str) => {
-            if let Ok(val) = interface_str.parse() {
-                val
-            } else {
-                log::error!("invalid host {interface_str:?}");
-                std::process::exit(1);
-            }
-        }
-        Err(_) => {
-            // use localhost
-            DEFAULT_HOST
-        }
-    };
+    let interface_ipv4 = env::var("HOST")
+        .context("missing HOST variable")?
+        .parse()
+        .context("HOST must be an ipv4 addr specification")?;
 
-    let cache_dir = match env::var("CACHE_DIR") {
-        Ok(dir_str) => {
-            let path = PathBuf::from(dir_str);
-            if !path.is_dir() {
-                if let Err(err) = fs::create_dir(&path) {
-                    log::error!("couldn't create cache directory {path:?}: {err}");
-                    std::process::exit(1);
-                }
-            }
-            path
-        }
-        Err(_) => PathBuf::from(DEFAULT_CACHE_DIR),
-    };
+    let cache_dir = env::var("CACHE_DIR").context("missing CACHE_DIR env")?;
 
-    AppConfig {
+    let cache_dir = PathBuf::from(cache_dir);
+    if !cache_dir.is_dir() {
+        fs::create_dir(&cache_dir).context("couldn't create cache directory")?;
+    }
+
+    Ok(AppConfig {
         port,
         interface_ipv4,
         cache_dir,
-    }
+    })
 }
 
-#[tokio::main]
-async fn main() {
+async fn real_main() -> anyhow::Result<()> {
     // initialize tracing
     tracing_subscriber::fmt::init();
 
-    let config = Arc::new(parse_app_config());
+    let config = Arc::new(parse_app_config()?);
 
     // build our application with a route
     let app = Router::new()
@@ -103,8 +72,16 @@ async fn main() {
 
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
-        .await
-        .unwrap();
+        .await?;
+
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Since this function is under the tokio::main macro, rust-analyzer has issues with it. Put
+    // the main in the real_main function instead.
+    real_main().await
 }
 
 async fn read_incident(
