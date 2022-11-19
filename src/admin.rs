@@ -8,7 +8,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use tracing as log;
 
-use crate::AppConfig;
+use crate::AppContext;
 
 #[derive(Serialize, Deserialize)]
 enum IncidentStatus {
@@ -87,7 +87,7 @@ pub(crate) async fn create_incident(
     // this argument tells axum to parse the request body
     // as JSON into a `CreateIncident` type
     Form(payload): Form<CreateIncident>,
-    Extension(config): Extension<Arc<AppConfig>>,
+    Extension(ctx): Extension<Arc<AppContext>>,
 ) -> impl IntoResponse {
     let incident = Incident {
         id: 0,
@@ -115,7 +115,7 @@ pub(crate) async fn create_incident(
     .replace("{{description}}", &incident.description)
     .replace("{{date}}", &incident.date.to_rfc2822()); // TODO better date display
 
-    let path = config.cache_dir.join(format!("{}.html", incident.id));
+    let path = ctx.config.cache_dir.join(format!("{}.html", incident.id));
     if let Err(err) = fs::write(&path, incident_page) {
         log::error!("unable to write incident page @ {path:?}: {err}");
     }

@@ -1,8 +1,5 @@
 use anyhow::Context as _;
 use axum::{
-    extract::Path,
-    http::StatusCode,
-    response::{Html, IntoResponse},
     routing::{get, post},
     Extension, Router,
 };
@@ -11,6 +8,7 @@ use std::{fs, net::SocketAddr};
 use tracing as log;
 
 mod admin;
+mod public;
 
 pub(crate) struct AppConfig {
     /// which port the app is listening on
@@ -21,6 +19,11 @@ pub(crate) struct AppConfig {
 
     /// Path to the cache directory
     cache_dir: PathBuf,
+}
+
+#[allow(dead_code)]
+pub(crate) struct AppContext {
+    config: AppConfig,
 }
 
 fn parse_app_config() -> anyhow::Result<AppConfig> {
@@ -56,21 +59,23 @@ async fn real_main() -> anyhow::Result<()> {
     // initialize tracing
     tracing_subscriber::fmt::init();
 
-    let config = Arc::new(parse_app_config()?);
+    let config = parse_app_config()?;
+
+    let listen_addr = SocketAddr::from((config.interface_ipv4, config.port));
+
+    let ctx = Arc::new(AppContext { config });
 
     // build our application with a route
     let app = Router::new()
         .route("/admin/incident/create", get(admin::create_incident_form))
         .route("/api/admin/incident", post(admin::create_incident))
-        .route("/incidents/:incident_id", get(read_incident))
-        .layer(Extension(config.clone()));
+        .route("/incidents/:incident_id", get(public::read_incident))
+        .layer(Extension(ctx));
 
-    // run our app with hyper
-    let addr = SocketAddr::from((config.interface_ipv4, config.port));
+    log::debug!("listening on {}", listen_addr);
 
-    log::debug!("listening on {}", addr);
-
-    axum::Server::bind(&addr)
+    // This, in fact, will never return.
+    axum::Server::bind(&listen_addr)
         .serve(app.into_make_service())
         .await?;
 
@@ -82,24 +87,4 @@ async fn main() -> anyhow::Result<()> {
     // Since this function is under the tokio::main macro, rust-analyzer has issues with it. Put
     // the main in the real_main function instead.
     real_main().await
-}
-
-async fn read_incident(
-    Path(incident_id): Path<u64>,
-    Extension(config): Extension<Arc<AppConfig>>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let path = config.cache_dir.join(format!("{incident_id}.html"));
-    if !path.exists() {
-        return Err(StatusCode::NOT_FOUND);
-    }
-
-    let content = match fs::read_to_string(&path) {
-        Ok(content) => content,
-        Err(err) => {
-            log::error!("unable to read incident @ {path:?}: {err}");
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
-
-    Ok(Html(content))
 }
