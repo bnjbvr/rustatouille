@@ -48,7 +48,7 @@ pub async fn create_incident_form() -> Html<&'static str> {
     Html(
         r#"
     <html>
-        <head>Statoo - create form</head>
+        <head>rustatouille - create form</head>
         <body>
             <form action="/api/admin/incident" method="post">
                 <p>Title <input type="text" name="title" /></p>
@@ -103,7 +103,7 @@ pub(crate) async fn create_incident(
 
     let incident_page = r#"
     <html>
-        <head><title>Statoo - {{title}}</title></head>
+        <head><title>rustatouille - {{title}}</title></head>
         <body>
             <h1>{{title}}</h1>
             <h3>{{date}}</h3>
