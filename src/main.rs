@@ -3,12 +3,16 @@ use axum::{
     routing::{get, post},
     Extension, Router,
 };
+use sqlx::AnyConnection;
 use std::{env, net::Ipv4Addr, path::PathBuf, sync::Arc};
 use std::{fs, net::SocketAddr};
+use tokio::sync::Mutex;
 use tracing as log;
 
 mod admin;
+mod db;
 mod public;
+mod r#static;
 
 pub(crate) struct AppConfig {
     /// which port the app is listening on
@@ -19,11 +23,14 @@ pub(crate) struct AppConfig {
 
     /// Path to the cache directory
     cache_dir: PathBuf,
+
+    /// Path to the sqlite file
+    db_connection_string: String,
 }
 
-#[allow(dead_code)]
 pub(crate) struct AppContext {
     config: AppConfig,
+    conn: Mutex<AnyConnection>,
 }
 
 fn parse_app_config() -> anyhow::Result<AppConfig> {
@@ -42,16 +49,23 @@ fn parse_app_config() -> anyhow::Result<AppConfig> {
         .context("HOST must be an ipv4 addr specification")?;
 
     let cache_dir = env::var("CACHE_DIR").context("missing CACHE_DIR env")?;
-
     let cache_dir = PathBuf::from(cache_dir);
     if !cache_dir.is_dir() {
         fs::create_dir(&cache_dir).context("couldn't create cache directory")?;
     }
 
+    let db_connection_env =
+        PathBuf::from(env::var("DB_CONNECTION").context("missing DB_CONNECTION")?);
+    let db_connection_string = db_connection_env
+        .to_str()
+        .context("DB_CONNECTION doesn't designate an utf8 path")?
+        .to_owned();
+
     Ok(AppConfig {
         port,
         interface_ipv4,
         cache_dir,
+        db_connection_string,
     })
 }
 
@@ -63,13 +77,19 @@ async fn real_main() -> anyhow::Result<()> {
 
     let listen_addr = SocketAddr::from((config.interface_ipv4, config.port));
 
-    let ctx = Arc::new(AppContext { config });
+    let conn = db::open(&config.db_connection_string).await?;
+
+    let ctx = Arc::new(AppContext {
+        config,
+        conn: Mutex::new(conn),
+    });
 
     // build our application with a route
     let app = Router::new()
         .route("/admin/incident/create", get(admin::create_incident_form))
         .route("/api/admin/incident", post(admin::create_incident))
         .route("/incidents/:incident_id", get(public::read_incident))
+        .route("/*path", get(r#static::get)) // catch-all
         .layer(Extension(ctx));
 
     log::debug!("listening on {}", listen_addr);
