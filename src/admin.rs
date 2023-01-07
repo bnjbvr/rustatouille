@@ -86,8 +86,8 @@ pub async fn create_incident_form() -> Html<&'static str> {
 pub(crate) async fn create_incident(
     // this argument tells axum to parse the request body
     // as JSON into a `CreateIncident` type
-    Form(payload): Form<CreateIncident>,
     Extension(ctx): Extension<Arc<AppContext>>,
+    Form(payload): Form<CreateIncident>,
 ) -> impl IntoResponse {
     let incident = Incident {
         id: 0,
@@ -120,5 +120,6 @@ pub(crate) async fn create_incident(
         log::error!("unable to write incident page @ {path:?}: {err}");
     }
 
+    // TODO redirect to main admin page
     StatusCode::CREATED
 }
