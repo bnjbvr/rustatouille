@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title></title>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="stylesheet" type="text/css" href="./style.css" />
+    </head>
+    <body>
+        <main class="box">
+            <header>
+                <h1>New service</h1>
+            </header>
+            <form action="/admin.html" method="post">
+                <p>
+                    <label for="name-field">Name:</label>
+                    <input id="name-field" name="name" type="text" maxlength="255" required />
+                </p>
+                <p>
+                    <label for="url-field">Title:</label>
+                    <input id="url-field" name="url" type="url" maxlength="255" required />
+                </p>
+                <p class="center">
+                    <input type="submit" class="btn" value="Add a service" />
+                </p>
+            </form>
+        </main>
+    </body>
+</html>
