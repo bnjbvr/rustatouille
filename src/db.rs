@@ -2,21 +2,22 @@ use std::{fmt, str::FromStr};
 
 use anyhow::Context as _;
 use chrono::NaiveDateTime;
+use serde::Deserialize;
 use sqlx::{AnyConnection, Connection, Executor};
 use tracing as log;
 
 #[derive(sqlx::FromRow)]
 pub struct Service {
-    id: Option<i64>,
-    name: String,
-    url: Option<String>,
+    pub id: Option<i64>,
+    pub name: String,
+    pub url: Option<String>,
 }
 
 impl Service {
     pub async fn insert(conn: &mut AnyConnection, s: &Service) -> anyhow::Result<i64> {
         let (id,) = sqlx::query_as::<_, (i64,)>(
             r#"
-            INSERT INTO services (name, url) VALUES ($1, $2)
+            INSERT INTO services (name, url) VALUES ($1, $2) RETURNING id
         "#,
         )
         .bind(&s.name)
@@ -24,6 +25,18 @@ impl Service {
         .fetch_one(conn)
         .await?;
         Ok(id)
+    }
+
+    pub async fn by_id(id: i64, conn: &mut AnyConnection) -> anyhow::Result<Option<Service>> {
+        let services = sqlx::query_as::<_, Service>(
+            r#"
+            SELECT id, name, url FROM services WHERE id = $1;
+        "#,
+        )
+        .bind(id)
+        .fetch_optional(conn)
+        .await?;
+        Ok(services)
     }
 
     pub async fn get_all(conn: &mut AnyConnection) -> anyhow::Result<Vec<Service>> {
@@ -39,7 +52,7 @@ impl Service {
 }
 
 #[derive(Debug)]
-enum Status {
+pub enum Status {
     Ongoing,
     UnderSurveillance,
     Identified,
@@ -75,8 +88,8 @@ impl FromStr for Status {
     }
 }
 
-#[derive(Debug)]
-enum Severity {
+#[derive(Debug, Deserialize)]
+pub enum Severity {
     PartialOutage,
     FullOutage,
     PerformanceIssues,
@@ -111,16 +124,16 @@ impl FromStr for Severity {
 
 #[derive(Debug)]
 pub struct Intervention {
-    id: Option<i64>,
-    start_date: NaiveDateTime,
+    pub id: Option<i64>,
+    pub start_date: NaiveDateTime,
     /// Estimated time it'll take to fix the issue, in minutes
-    estimated_duration: Option<i64>,
-    end_date: Option<NaiveDateTime>,
-    status: Status,
-    severity: Severity,
-    is_planned: bool,
-    title: String,
-    description: Option<String>,
+    pub estimated_duration: Option<i64>,
+    pub end_date: Option<NaiveDateTime>,
+    pub status: Status,
+    pub severity: Severity,
+    pub is_planned: bool,
+    pub title: String,
+    pub description: Option<String>,
 }
 
 impl<'a, R: sqlx::Row> sqlx::FromRow<'a, R> for Intervention
@@ -182,12 +195,12 @@ impl Intervention {
             RETURNING ID;
         "#,
         )
-            .bind(&i.start_date.timestamp())
-            .bind(&i.estimated_duration)
-            .bind(&i.end_date.map(|d| d.timestamp()))
+            .bind(i.start_date.timestamp())
+            .bind(i.estimated_duration)
+            .bind(i.end_date.map(|d| d.timestamp()))
             .bind(i.status.to_string())
             .bind(i.severity.to_string())
-            .bind(&i.is_planned)
+            .bind(i.is_planned)
             .bind(&i.title)
             .bind(&i.description)
             .fetch_one(conn)
@@ -222,8 +235,8 @@ impl Intervention {
             VALUES ($1, $2)
         "#,
         )
-        .bind(&service_id)
-        .bind(&id)
+        .bind(service_id)
+        .bind(id)
         .execute(conn)
         .await?;
         Ok(())
@@ -238,13 +251,14 @@ impl Intervention {
             AND interventions.id == is_.intervention_id
         "#,
         )
-        .bind(&id)
+        .bind(id)
         .fetch_all(conn)
         .await?;
         Ok(services)
     }
 }
 
+#[allow(dead_code)]
 #[derive(sqlx::FromRow)]
 pub struct Comment {
     date: NaiveDateTime,

@@ -4,15 +4,15 @@
         <title></title>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-		<link rel="stylesheet" type="text/css" href="./style.css" />
-		<link rel="stylesheet" type="text/css" href="./admin.css" />
+		<link rel="stylesheet" type="text/css" href="/style.css" />
+		<link rel="stylesheet" type="text/css" href="/admin.css" />
     </head>
     <body>
         <main class="box">
             <header>
                 <h1>New intervention</h1>
             </header>
-            <form action="/admin.html" method="post">
+            <form action="/admin/api/intervention" method="post">
                 <p>
                     <label for="title-field">Title:</label>
                     <input id="title-field" name="title" type="text" maxlength="255" required />
@@ -41,8 +41,7 @@
                 <p>
                     <label for="services-field">Impacted services:</label><br />
                     <select id="services-field" name="services" multiple required>
-                        <option>Framasphère</option>    
-                        <option>Framaspace</option>
+                        {{SERVICES}}
                     </select>
                 </p>
                 <p class="center">

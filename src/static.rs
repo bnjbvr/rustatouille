@@ -1,8 +1,8 @@
 use crate::AppContext;
 use axum::{
     extract::Path,
-    http::StatusCode,
-    response::{Html, IntoResponse},
+    http::{header, HeaderValue, StatusCode},
+    response::IntoResponse,
     Extension,
 };
 use std::{fs, sync::Arc};
@@ -26,5 +26,13 @@ pub(crate) async fn get(
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
     };
-    Ok(Html(content))
+
+    let content_type = HeaderValue::from_static(match path.extension().and_then(|s| s.to_str()) {
+        Some("css") => "text/css",
+        Some("js") => "text/javascript",
+        Some("html") => "text/html",
+        _ => "text/plain",
+    });
+
+    Ok(([(header::CONTENT_TYPE, content_type)], content).into_response())
 }
