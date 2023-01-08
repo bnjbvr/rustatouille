@@ -4,12 +4,15 @@
         <title></title>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="stylesheet" type="text/css" href="./style.css" />
     </head>
     <body>
-        <main>
-            <h1>Rustatouille</h1>
-            <div class="alert error">{intervention.title} is actually on going on {intervention.services}</div>
-            
+        <main class="box">
+            <h1>Services status</h1>
+            <div class="ongoing-outage">
+                <strong>{intervention.title} is actually on going on {intervention.services}.</strong>
+                Severity: {intervention.severity}, started at {intervention.start_date}, estimated duration {intervention.estimated_duration}.
+            </div>
         </main>
     </body>
 </html>

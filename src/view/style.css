@@ -33,76 +33,39 @@ main {
     align-items: center;
 }
 
-.btn {
-    padding: .5rem .8rem;
-    background-color: var(--primary);
-    border: solid 1px var(--dark-primary);
-    color: #fff;
-    text-decoration: none;
-    border-radius: 3px;
-    font-weight: bold;
-}   
-
 .box header h1 {
-    margin-top: 0;
-    margin-bottom: var(--main-margin);
     border-bottom: solid 4px var(--primary);
+}
+
+.box header * {
+    margin: 0;
 }
 
 .center {
     text-align: center;
 }
 
-[type=text],
-[type=email],
-[type=number],
-[type=datetime],
-textarea {
-    border: solid 1px #ccc;
-    border-radius: 3px;
-    padding: .4rem .6rem;
+.interventions > section:not(:last-child)::after {
+    content: " ";
+    display: block;
+    width: 400px;
+    margin: auto;
+    margin-bottom: var(--main-margin);
+    border-bottom: solid 1px #ddd;
 }
 
-.error {
-    background-color: #fedcd7;
-    border-color: #febbb2;
+.partial-outage,
+.performance-issue {
+    color: #eb996d;
+}
+
+.full-outage {
     color: #c42719;
 }
 
-.warning {
-    background-color: #fee7c8;
-    border-color: #fbc98d;
-    color: #7b2f1a;
-}
-
-.success {
-    background-color: #9ae6ad;
-    border-color: #69d183;
-    color: #184029;
-}
-
-.toast {
-    position: fixed;
-    right: var(--main-margin);
-    bottom: var(--main-margin);
+.ongoing-outage {
     padding: var(--half-margin) var(--main-margin);
-    border: solid 1px;
-    border-radius: 3px;
-    font-weight: bold;
-    animation-delay: 5s;
-    animation-duration: 3s;
-    animation-fill-mode: forwards;
-    animation-name: slidein;
-    animation-direction: alternate;
+    background-color:   #fedcd7;
+    border-color: #febbb2;
+    color: #c42719;
 }
-
-@keyframes slidein {
-    from {
-        right: var(--main-margin);
-    }
-  
-    to {
-        right: -100%;
-    }
-}
-  
