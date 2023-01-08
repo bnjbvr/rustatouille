@@ -11,10 +11,12 @@
         <main class="box">
             <header>
                 <h1>Administration</h1>
-                <a href="new-intervention.html" class="btn">Plan a new intervention</a>
             </header>
-            <div class="interventions">
-                <h2>Interventions</h2>
+            <div class="list interventions">
+                <header>
+                    <h2>Interventions</h2>
+                    <a href="new-intervention.html" class="btn">Plan a new intervention</a>
+                </header>
                 <section>
                     <header>
                         <h3>Ceci est le titre de l'intervention</h3>
@@ -47,6 +49,36 @@
                         <em>Estimated duration:</em> <strong>{intervention.estimated_duration} minutes</strong>
                     </p>
                     <p>{intervention.description}</p>
+                </section>
+            </div>
+            <div class="list services">
+                <header>
+                    <h2>Monitored services</h2>
+                    <a href="new-service.html" class="btn">Add a new service</a>
+                </header>
+                <section>
+                    <header>
+                        <h3>
+                            <a href="https://framapad.org" target="_blank">Framapad</a>
+                        </h3>
+                        <p>1</p>
+                    </header>
+                </section>
+                <section>
+                    <header>
+                        <h3>
+                            <a href="https://frama.space" target="_blank">Framaspace</a>
+                        </h3>
+                        <p>2</p>
+                    </header>
+                </section>
+                <section>
+                    <header>
+                        <h3>
+                            <a href="{service.url}" target="_blank">{service.title}</a>
+                        </h3>
+                        <p>{service.interventions.length}</p>
+                    </header>
                 </section>
             </div>
         </main>
