@@ -42,21 +42,3 @@ textarea {
         right: -100%;
     }
 }
-
-.error {
-    background-color: #fedcd7;
-    border-color: #febbb2;
-    color: #c42719;
-}
-
-.warning {
-    background-color: #fee7c8;
-    border-color: #fbc98d;
-    color: #7b2f1a;
-}
-
-.success {
-    background-color: #9ae6ad;
-    border-color: #69d183;
-    color: #184029;
-}

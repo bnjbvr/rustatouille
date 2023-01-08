@@ -18,6 +18,28 @@ main {
     max-width: 800px;
 }
 
+ul {
+    padding-left: var(--main-margin);
+}
+
+.error {
+    background-color: #ffebe6;
+    border-color: #febbb2;
+    color: #be291b;
+}
+
+.warning {
+    background-color: #fee7c8;
+    border-color: #fffae6;
+    color: #a34c34;
+}
+
+.success {
+    background-color: #e3fcef;
+    border-color: #69d183;
+    color: #1f7e48;
+}
+
 .box {
     margin: var(--main-margin) auto;
     padding: var(--main-margin);
@@ -58,6 +80,28 @@ main {
     border-bottom: solid 1px #ddd;
 }
 
+.tiles {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: minmax(100px, auto);
+    gap: var(--main-margin);
+}
+
+.tiles > section {
+    padding: var(--main-margin);
+    border: solid 1px;
+    border-radius: 3px;
+}
+
+.tiles h3,
+.tiles ul {
+    margin: 0;
+}
+
+.tiles a {
+    color: inherit;
+}
+
 .partial-outage,
 .performance-issue {
     color: #eb996d;
@@ -68,10 +112,9 @@ main {
 }
 
 .ongoing-outage {
+    margin: var(--main-margin) 0;
     padding: var(--half-margin) var(--main-margin);
-    background-color:   #fedcd7;
-    border-color: #febbb2;
-    color: #c42719;
+    border: solid 1px;
 }
 
 .badge {
