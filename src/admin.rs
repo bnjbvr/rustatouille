@@ -14,7 +14,7 @@ use crate::{
     AppContext,
 };
 
-macro_rules! or_err {
+macro_rules! try500 {
     ($val:expr, $ctx:literal) => {
         match $val {
             Ok(r) => r,
@@ -34,12 +34,12 @@ pub(crate) async fn index(Extension(ctx): Extension<Arc<AppContext>>) -> impl In
 
     let (services, interventions) = {
         let mut conn = ctx.conn.lock().await;
-        let services = or_err!(
+        let services = try500!(
             Service::get_with_num_interventions(&mut conn).await,
             "retrieving list of services for admin index"
         );
 
-        let interventions = or_err!(
+        let interventions = try500!(
             Intervention::get_all(&mut conn).await,
             "retrieveing list of interventions for admin index"
         );
@@ -117,7 +117,7 @@ pub(crate) async fn create_service(
     {
         let mut conn = ctx.conn.lock().await;
         let s_id = Service::insert(&mut conn, &service).await;
-        let _ = or_err!(s_id, "inserting a new service");
+        let _ = try500!(s_id, "inserting a new service");
     }
 
     let location = HeaderValue::from_static("/admin");
@@ -143,8 +143,10 @@ pub(crate) async fn create_intervention_form(
 ) -> impl IntoResponse {
     let services = {
         let mut conn = ctx.conn.lock().await;
-        let s = Service::get_all(&mut conn).await;
-        or_err!(s, "retrieving services when creating an intervention")
+        try500!(
+            Service::get_all(&mut conn).await,
+            "retrieving services when creating an intervention"
+        )
     };
 
     let services_string = services
@@ -179,13 +181,13 @@ pub(crate) async fn create_intervention(
 
     let id = {
         let mut conn = ctx.conn.lock().await;
-        let int_id = or_err!(
+        let int_id = try500!(
             Intervention::insert(&mut conn, &intervention).await,
             "when inserting a new intervention"
         );
 
         for sid in payload.services {
-            let service = or_err!(
+            let service = try500!(
                 Service::by_id(sid as i64, &mut conn).await,
                 "retrieving a service by id"
             );
