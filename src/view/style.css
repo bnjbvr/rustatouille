@@ -73,3 +73,12 @@ main {
     border-color: #febbb2;
     color: #c42719;
 }
+
+.badge {
+    width: 25px;
+    height: 25px;
+    line-height: 30px;
+    text-align: center;
+    border-radius: 50%;
+    background: #ddd;
+}
