@@ -10,7 +10,14 @@ use tracing as log;
 pub struct Service {
     pub id: Option<i64>,
     pub name: String,
-    pub url: Option<String>,
+    pub url: String,
+}
+
+#[derive(sqlx::FromRow)]
+pub struct ServiceWithNumInterventions {
+    pub name: String,
+    pub url: String,
+    pub num_interventions: i64,
 }
 
 impl Service {
@@ -43,6 +50,26 @@ impl Service {
         let services = sqlx::query_as::<_, Service>(
             r#"
             SELECT id, name, url FROM services;
+        "#,
+        )
+        .fetch_all(conn)
+        .await?;
+        Ok(services)
+    }
+
+    pub async fn get_with_num_interventions(
+        conn: &mut AnyConnection,
+    ) -> anyhow::Result<Vec<ServiceWithNumInterventions>> {
+        let services = sqlx::query_as::<_, ServiceWithNumInterventions>(
+            r#"
+            SELECT
+                s.id,
+                count(is_.id) as num_interventions,
+                s.name,
+                s.url
+            FROM services as s
+            LEFT JOIN interventions_services as is_ on s.id == is_.service_id
+            GROUP BY s.id;
         "#,
         )
         .fetch_all(conn)
@@ -93,6 +120,16 @@ pub enum Severity {
     PartialOutage,
     FullOutage,
     PerformanceIssues,
+}
+
+impl Severity {
+    pub fn kebab_case(&self) -> &str {
+        match *self {
+            Severity::PartialOutage => "partial-outage",
+            Severity::FullOutage => "full-outage",
+            Severity::PerformanceIssues => "performance-issues",
+        }
+    }
 }
 
 impl fmt::Display for Severity {
@@ -401,13 +438,13 @@ async fn insert_fixtures(conn: &mut AnyConnection) -> anyhow::Result<()> {
     let framasphere = Service {
         id: None,
         name: String::from("Framasphere"),
-        url: Some(String::from("https://diaspora-fr.org")),
+        url: String::from("https://diaspora-fr.org"),
     };
 
     let framathunes = Service {
         id: None,
         name: String::from("Framathunes"),
-        url: None,
+        url: String::from("https://kresus.org"),
     };
 
     Service::insert(conn, &framasphere).await?;

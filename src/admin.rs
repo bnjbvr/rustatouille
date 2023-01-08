@@ -1,7 +1,7 @@
 use std::{fs, sync::Arc};
 
 use axum::{
-    http::StatusCode,
+    http::{header, HeaderValue, StatusCode},
     response::{Html, IntoResponse},
     Extension, Form,
 };
@@ -14,8 +14,82 @@ use crate::{
     AppContext,
 };
 
-pub async fn index() -> Html<&'static str> {
-    Html(include_str!("./view/admin.html"))
+macro_rules! or_err {
+    ($val:expr, $ctx:literal) => {
+        match $val {
+            Ok(r) => r,
+            Err(err) => {
+                log::error!("error {}: {err}", $ctx);
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Html("Ohnoes, something went wrong!").into_response(),
+                );
+            }
+        }
+    };
+}
+
+pub(crate) async fn index(Extension(ctx): Extension<Arc<AppContext>>) -> impl IntoResponse {
+    let page = include_str!("./view/admin.html");
+
+    let (services, interventions) = {
+        let mut conn = ctx.conn.lock().await;
+        let services = or_err!(
+            Service::get_with_num_interventions(&mut conn).await,
+            "retrieving list of services for admin index"
+        );
+
+        let interventions = or_err!(
+            Intervention::get_all(&mut conn).await,
+            "retrieveing list of interventions for admin index"
+        );
+
+        (services, interventions)
+    };
+
+    let page = page.replace(
+        "{{SERVICE_FRAGMENTS}}",
+        &services
+            .into_iter()
+            .map(|s| {
+                include_str!("./view/service-fragment.html")
+                    .replace("{service.url}", &s.url)
+                    .replace("{service.title}", &s.name)
+                    .replace(
+                        "{service.interventions.length}",
+                        &s.num_interventions.to_string(),
+                    )
+            })
+            .collect::<Vec<_>>()
+            .join("\n"),
+    );
+
+    let page = page.replace(
+        "{{INTERVENTION_FRAGMENTS}}",
+        &interventions
+            .into_iter()
+            .map(|i| {
+                include_str!("./view/intervention-fragment.html")
+                    .replace("{intervention.title}", &i.title)
+                    .replace("{intervention.start_date}", &i.start_date.to_string())
+                    .replace("{intervention.severity}", i.severity.kebab_case())
+                    .replace("{intervention.severity.label}", &i.severity.to_string())
+                    .replace(
+                        "{intervention.estimated_duration}",
+                        &i.estimated_duration
+                            .map(|s| s.to_string())
+                            .unwrap_or_else(|| "<null>".to_owned()),
+                    )
+                    .replace(
+                        "{intervention.description}",
+                        i.description.as_deref().unwrap_or("<null>"),
+                    ) // TODO markdown!
+            })
+            .collect::<Vec<_>>()
+            .join("\n"),
+    );
+
+    (StatusCode::OK, Html(page).into_response())
 }
 
 pub async fn create_service_form() -> Html<&'static str> {
@@ -37,27 +111,19 @@ pub(crate) async fn create_service(
     let service = Service {
         id: None,
         name: payload.name,
-        url: Some(payload.url),
+        url: payload.url,
     };
 
     {
         let mut conn = ctx.conn.lock().await;
-        match Service::insert(&mut conn, &service).await {
-            Ok(_id) => {}
-            Err(err) => {
-                log::error!("when inserting a new service: {err}");
-                return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Html("Ohnoes, something went wrong!"),
-                );
-            }
-        }
+        let s_id = Service::insert(&mut conn, &service).await;
+        let _ = or_err!(s_id, "inserting a new service");
     }
 
+    let location = HeaderValue::from_static("/admin");
     (
-        StatusCode::CREATED,
-        // TODO(fla) better page after creating
-        Html(r#"<a href="/admin">It worked!</a>"#),
+        StatusCode::FOUND,
+        [(header::LOCATION, location)].into_response(),
     )
 }
 
@@ -77,16 +143,8 @@ pub(crate) async fn create_intervention_form(
 ) -> impl IntoResponse {
     let services = {
         let mut conn = ctx.conn.lock().await;
-        match Service::get_all(&mut conn).await {
-            Ok(s) => s,
-            Err(err) => {
-                log::error!("when retrieving services when creating an intervention: {err}");
-                return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Html("Oh noes, something went wrong :(".to_string()),
-                );
-            }
-        }
+        let s = Service::get_all(&mut conn).await;
+        or_err!(s, "retrieving services when creating an intervention")
     };
 
     let services_string = services
@@ -98,7 +156,7 @@ pub(crate) async fn create_intervention_form(
     let page =
         include_str!("./view/new-intervention.html").replace("{{SERVICES}}", &services_string);
 
-    (StatusCode::OK, Html(page))
+    (StatusCode::OK, Html(page).into_response())
 }
 
 pub(crate) async fn create_intervention(
@@ -121,23 +179,21 @@ pub(crate) async fn create_intervention(
 
     let id = {
         let mut conn = ctx.conn.lock().await;
-        let int_id = match Intervention::insert(&mut conn, &intervention).await {
-            Ok(id) => id,
-            Err(err) => {
-                log::error!("when inserting a new intervention: {err}");
-                return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Html("Ohnoes, something went wrong!"),
-                );
-            }
-        };
+        let int_id = or_err!(
+            Intervention::insert(&mut conn, &intervention).await,
+            "when inserting a new intervention"
+        );
 
         for sid in payload.services {
-            let Ok(service) = Service::by_id(sid as i64, &mut conn).await else {
-                return (StatusCode::INTERNAL_SERVER_ERROR, Html("Ohnoes, something went wrong!"));
-            };
+            let service = or_err!(
+                Service::by_id(sid as i64, &mut conn).await,
+                "retrieving a service by id"
+            );
             if service.is_none() {
-                return (StatusCode::NOT_FOUND, Html("Service not found!"));
+                return (
+                    StatusCode::NOT_FOUND,
+                    Html("Service not found!").into_response(),
+                );
             }
             if let Err(err) = Intervention::add_service(int_id, sid as i64, &mut conn).await {
                 log::error!("when adding a service to an intervention: {err}");
@@ -178,6 +234,6 @@ pub(crate) async fn create_intervention(
 
     (
         StatusCode::CREATED,
-        Html(r#"<a href="/admin">It worked!</a>"#),
+        Html(r#"<a href="/admin">It worked!</a>"#).into_response(),
     )
 }
