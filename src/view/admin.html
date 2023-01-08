@@ -5,6 +5,7 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
 		<link rel="stylesheet" type="text/css" href="./style.css" />
+		<link rel="stylesheet" type="text/css" href="./admin.css" />
     </head>
     <body>
         <main class="box">
@@ -12,9 +13,42 @@
                 <h1>Administration</h1>
                 <a href="new-intervention.html" class="btn">Plan a new intervention</a>
             </header>
-            <section>
-
-            </section>
+            <div class="interventions">
+                <h2>Interventions</h2>
+                <section>
+                    <header>
+                        <h3>Ceci est le titre de l'intervention</h3>
+                        <p>13/02/2023 08h30</p>
+                    </header>
+                    <p>
+                        <em>Severity:</em> <strong class="full-outage">Full outage</strong>
+                        <em>Estimated duration:</em> <strong>120 minutes</strong>
+                    </p>
+                    <p>Ceci est une description d'intervention WALA TAVU!</p>
+                </section>
+                <section>
+                    <header>
+                        <h3>Ceci est le titre de l'intervention</h3>
+                        <p>15/02/2023 08h30</p>
+                    </header>
+                    <p>
+                        <em>Severity:</em> <strong class="partial-outage">Partial outage</strong>
+                        <em>Estimated duration:</em> <strong>15 minutes</strong>
+                    </p>
+                    <p>Ceci est une description d'intervention WALA TAVU!</p>
+                </section>
+                <section>
+                    <header>
+                        <h3>{intervention.title}</h3>
+                        <p>{intervention.start_date}</p>
+                    </header>
+                    <p>
+                        <em>Severity:</em> <strong class="{intervention.severity}">{intervention.severity.label}</strong>
+                        <em>Estimated duration:</em> <strong>{intervention.estimated_duration} minutes</strong>
+                    </p>
+                    <p>{intervention.description}</p>
+                </section>
+            </div>
         </main>
         <div class="toast success">Intervention {title} created!</div>
     </body>

@@ -1,0 +1,62 @@
+.btn {
+    padding: .5rem .8rem;
+    background-color: var(--primary);
+    border: solid 1px var(--dark-primary);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 3px;
+    font-weight: bold;
+}
+
+[type=text],
+[type=email],
+[type=number],
+[type=datetime],
+textarea {
+    border: solid 1px #ccc;
+    border-radius: 3px;
+    padding: .4rem .6rem;
+}
+
+.toast {
+    position: fixed;
+    right: var(--main-margin);
+    bottom: var(--main-margin);
+    padding: var(--half-margin) var(--main-margin);
+    border: solid 1px;
+    border-radius: 3px;
+    font-weight: bold;
+    animation-delay: 5s;
+    animation-duration: 3s;
+    animation-fill-mode: forwards;
+    animation-name: slidein;
+    animation-direction: alternate;
+}
+
+@keyframes slidein {
+    from {
+        right: var(--main-margin);
+    }
+  
+    to {
+        right: -100%;
+    }
+}
+
+.error {
+    background-color: #fedcd7;
+    border-color: #febbb2;
+    color: #c42719;
+}
+
+.warning {
+    background-color: #fee7c8;
+    border-color: #fbc98d;
+    color: #7b2f1a;
+}
+
+.success {
+    background-color: #9ae6ad;
+    border-color: #69d183;
+    color: #184029;
+}
