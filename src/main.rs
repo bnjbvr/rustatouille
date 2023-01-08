@@ -11,7 +11,6 @@ use tracing as log;
 
 mod admin;
 mod db;
-mod public;
 mod r#static;
 
 pub(crate) struct AppConfig {
@@ -69,6 +68,17 @@ fn parse_app_config() -> anyhow::Result<AppConfig> {
     })
 }
 
+fn copy_static_files_to_cache_dir(ctx: &AppContext) -> anyhow::Result<()> {
+    // Copy the style.
+    let style = include_str!("./view/style.css");
+    fs::write(ctx.config.cache_dir.join("style.css"), style)?;
+
+    let style = include_str!("./view/admin.css");
+    fs::write(ctx.config.cache_dir.join("admin.css"), style)?;
+
+    Ok(())
+}
+
 async fn real_main() -> anyhow::Result<()> {
     // initialize tracing
     tracing_subscriber::fmt::init();
@@ -84,11 +94,18 @@ async fn real_main() -> anyhow::Result<()> {
         conn: Mutex::new(conn),
     });
 
+    copy_static_files_to_cache_dir(&ctx)?;
+
     // build our application with a route
     let app = Router::new()
-        .route("/admin/incident/create", get(admin::create_incident_form))
-        .route("/api/admin/incident", post(admin::create_incident))
-        .route("/incidents/:incident_id", get(public::read_incident))
+        .route("/admin", get(admin::index))
+        .route("/admin/service/new", get(admin::create_service_form))
+        .route(
+            "/admin/intervention/new",
+            get(admin::create_intervention_form),
+        )
+        .route("/admin/api/service", post(admin::create_service))
+        .route("/admin/api/intervention", post(admin::create_intervention))
         .route("/*path", get(r#static::get)) // catch-all
         .layer(Extension(ctx));
 
