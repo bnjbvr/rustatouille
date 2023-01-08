@@ -45,7 +45,11 @@ main {
     text-align: center;
 }
 
-.interventions > section:not(:last-child)::after {
+.list header {
+    margin: var(--main-margin) 0;
+}
+
+.list > section:not(:last-child)::after {
     content: " ";
     display: block;
     width: 400px;
