@@ -33,7 +33,7 @@ pub(crate) async fn index(Extension(ctx): Extension<Arc<AppContext>>) -> impl In
     let page = include_str!("./view/admin.html");
 
     let (services, interventions) = {
-        let mut conn = ctx.conn.lock().await;
+        let mut conn = ctx.db_connection.lock().await;
         let services = try500!(
             Service::get_with_num_interventions(&mut conn).await,
             "retrieving list of services for admin index"
@@ -115,7 +115,7 @@ pub(crate) async fn create_service(
     };
 
     {
-        let mut conn = ctx.conn.lock().await;
+        let mut conn = ctx.db_connection.lock().await;
         let s_id = Service::insert(&mut conn, &service).await;
         let _ = try500!(s_id, "inserting a new service");
     }
@@ -142,7 +142,7 @@ pub(crate) async fn create_intervention_form(
     Extension(ctx): Extension<Arc<AppContext>>,
 ) -> impl IntoResponse {
     let services = {
-        let mut conn = ctx.conn.lock().await;
+        let mut conn = ctx.db_connection.lock().await;
         try500!(
             Service::get_all(&mut conn).await,
             "retrieving services when creating an intervention"
@@ -180,7 +180,7 @@ pub(crate) async fn create_intervention(
     };
 
     let id = {
-        let mut conn = ctx.conn.lock().await;
+        let mut conn = ctx.db_connection.lock().await;
         let int_id = try500!(
             Intervention::insert(&mut conn, &intervention).await,
             "when inserting a new intervention"

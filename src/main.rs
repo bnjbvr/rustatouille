@@ -29,7 +29,7 @@ pub(crate) struct AppConfig {
 
 pub(crate) struct AppContext {
     config: AppConfig,
-    conn: Mutex<AnyConnection>,
+    db_connection: Mutex<AnyConnection>,
 }
 
 fn parse_app_config() -> anyhow::Result<AppConfig> {
@@ -91,7 +91,7 @@ async fn real_main() -> anyhow::Result<()> {
 
     let ctx = Arc::new(AppContext {
         config,
-        conn: Mutex::new(conn),
+        db_connection: Mutex::new(conn),
     });
 
     copy_static_files_to_cache_dir(&ctx)?;
