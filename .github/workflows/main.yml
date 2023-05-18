@@ -26,6 +26,8 @@ jobs:
           override: true
           components: clippy, rustfmt
 
+      - uses: rui314/setup-mold@v1
+
       - uses: Swatinem/rust-cache@v1
 
       - name: Format
