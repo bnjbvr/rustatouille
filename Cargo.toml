@@ -8,6 +8,7 @@ anyhow = "1.0.71"
 axum = "0.6.18"
 chrono = { version = "0.4.24", features = ["serde"] }
 dotenvy = "0.15.7"
+form_urlencoded = "1.1.0"
 serde = { version = "1.0.163", features = ["derive"] }
 sqlx = { version = "0.6.3", features = ["runtime-tokio-rustls", "any", "sqlite", "mysql", "postgres", "mssql", "chrono"] }
 tera = "1.19.0"
