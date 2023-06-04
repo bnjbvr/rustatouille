@@ -1,50 +1,46 @@
-use std::{fmt, str::FromStr};
-
 use chrono::NaiveDateTime;
-use serde::Deserialize;
 use sqlx::{AnyConnection, Executor as _};
 
 use super::services::Service;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug)]
 pub enum Severity {
     PartialOutage,
     FullOutage,
-    PerformanceIssues,
+    PerformanceIssue,
 }
 
 impl Severity {
-    pub fn kebab_case(&self) -> &str {
+    pub fn to_css_class(&self) -> &str {
         match *self {
             Severity::PartialOutage => "partial-outage",
             Severity::FullOutage => "full-outage",
-            Severity::PerformanceIssues => "performance-issues",
+            Severity::PerformanceIssue => "performance-issue",
         }
     }
-}
 
-impl fmt::Display for Severity {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            fmt,
-            "{}",
-            match *self {
-                Self::PartialOutage => "partial_outage",
-                Self::FullOutage => "full_outage",
-                Self::PerformanceIssues => "performance_issues",
-            }
-        )
+    // TODO i18n???
+    pub fn label(&self) -> &str {
+        match *self {
+            Severity::PartialOutage => "Partial outage",
+            Severity::FullOutage => "Full outage",
+            Severity::PerformanceIssue => "Performance issue",
+        }
     }
-}
 
-impl FromStr for Severity {
-    type Err = anyhow::Error;
+    fn to_db_str(&self) -> &str {
+        match *self {
+            Self::PartialOutage => "partial_outage",
+            Self::FullOutage => "full_outage",
+            Self::PerformanceIssue => "performance_issue",
+        }
+    }
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_db_str(s: &str) -> anyhow::Result<Self> {
         Ok(match s {
             "partial_outage" => Self::PartialOutage,
             "full_outage" => Self::FullOutage,
-            "performance_issues" => Self::PerformanceIssues,
+            "performance_issue" => Self::PerformanceIssue,
             _ => anyhow::bail!("unexpected value for severity: {s}"),
         })
     }
@@ -58,25 +54,17 @@ pub enum Status {
     Resolved,
 }
 
-impl fmt::Display for Status {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            fmt,
-            "{}",
-            match *self {
-                Self::Ongoing => "ongoing",
-                Self::UnderSurveillance => "under_surveillance",
-                Self::Identified => "identified",
-                Self::Resolved => "resolved",
-            }
-        )
+impl Status {
+    fn to_db_str(&self) -> &str {
+        match *self {
+            Self::Ongoing => "ongoing",
+            Self::UnderSurveillance => "under_surveillance",
+            Self::Identified => "identified",
+            Self::Resolved => "resolved",
+        }
     }
-}
 
-impl FromStr for Status {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_db_str(s: &str) -> anyhow::Result<Self> {
         Ok(match s {
             "ongoing" => Self::Ongoing,
             "under_surveillance" => Self::UnderSurveillance,
@@ -124,10 +112,10 @@ where
         let end_date = end_date.and_then(|end_date| NaiveDateTime::from_timestamp_opt(end_date, 0));
 
         let status: String = row.try_get("status")?;
-        let status = Status::from_str(&status).unwrap();
+        let status = Status::from_db_str(&status).unwrap();
 
         let severity: String = row.try_get("severity")?;
-        let severity = Severity::from_str(&severity).unwrap();
+        let severity = Severity::from_db_str(&severity).unwrap();
 
         let is_planned: bool = row.try_get("is_planned")?;
         let title: String = row.try_get("title")?;
@@ -163,8 +151,8 @@ impl Intervention {
             .bind(i.start_date.timestamp())
             .bind(i.estimated_duration)
             .bind(i.end_date.map(|d| d.timestamp()))
-            .bind(i.status.to_string())
-            .bind(i.severity.to_string())
+            .bind(i.status.to_db_str())
+            .bind(i.severity.to_db_str())
             .bind(i.is_planned)
             .bind(&i.title)
             .bind(&i.description)

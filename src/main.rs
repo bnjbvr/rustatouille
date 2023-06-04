@@ -11,6 +11,7 @@ use std::{
     sync::Arc,
 };
 use std::{fs, net::SocketAddr};
+use tera::Tera;
 use tokio::sync::Mutex;
 use tracing as log;
 
@@ -35,8 +36,14 @@ pub(crate) struct AppConfig {
 }
 
 pub(crate) struct AppContext {
+    /// Static configuration for the application, derived from the environment variables.
     config: AppConfig,
+
+    /// Connection pool to the database.
     db_connection: Mutex<AnyConnection>,
+
+    /// Templates for dynamic pages.
+    templates: Tera,
 }
 
 fn parse_app_config() -> anyhow::Result<AppConfig> {
@@ -86,10 +93,10 @@ fn parse_app_config() -> anyhow::Result<AppConfig> {
 /// TODO: should also do it on change on disk, in the DEV_SERVER mode?
 fn copy_static_files_to_cache_dir(cache_dir: &Path) -> anyhow::Result<()> {
     // Copy the style.
-    let style = include_str!("./view/style.css");
+    let style = include_str!("../templates/style.css");
     fs::write(cache_dir.join("style.css"), style)?;
 
-    let style = include_str!("./view/admin.css");
+    let style = include_str!("../templates/admin.css");
     fs::write(cache_dir.join("admin.css"), style)?;
 
     Ok(())
@@ -105,9 +112,12 @@ async fn real_main() -> anyhow::Result<()> {
     // Start the database.
     let conn = db::open(&config.db_connection_string).await?;
 
+    let templates = Tera::new("templates/*.html").context("initializing tera")?;
+
     let ctx = Arc::new(AppContext {
         config,
         db_connection: Mutex::new(conn),
+        templates,
     });
 
     // Generate the full web site initially.

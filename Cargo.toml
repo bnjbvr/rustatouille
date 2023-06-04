@@ -10,6 +10,7 @@ chrono = { version = "0.4.24", features = ["serde"] }
 dotenvy = "0.15.7"
 serde = { version = "1.0.163", features = ["derive"] }
 sqlx = { version = "0.6.3", features = ["runtime-tokio-rustls", "any", "sqlite", "mysql", "postgres", "mssql", "chrono"] }
+tera = "1.19.0"
 tokio = { version = "1.28.1", features = ["full"] }
 tracing = "0.1.37"
 tracing-subscriber = "0.3.17"
