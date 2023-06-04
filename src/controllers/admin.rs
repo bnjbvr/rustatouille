@@ -1,7 +1,5 @@
-use std::error::Error as _;
-use std::fs;
-use std::sync::Arc;
-
+use anyhow::Context;
+use axum::extract::RawForm;
 use axum::response::Response;
 use axum::{
     http::{header, HeaderValue, StatusCode},
@@ -10,6 +8,9 @@ use axum::{
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::error::Error as _;
+use std::fs;
+use std::sync::Arc;
 use tracing as log;
 
 use crate::{
@@ -38,8 +39,8 @@ macro_rules! try500 {
     };
 }
 
-fn not_found(text: &'static str) -> (StatusCode, Response) {
-    (StatusCode::NOT_FOUND, Html(text).into_response())
+fn not_found(text: impl Into<String>) -> (StatusCode, Response) {
+    (StatusCode::NOT_FOUND, Html(text.into()).into_response())
 }
 
 fn redirect(to_url: &'static str) -> (StatusCode, Response) {
@@ -70,27 +71,6 @@ impl From<FormStatus> for Status {
             FormStatus::UnderSurveillance => Self::UnderSurveillance,
             FormStatus::Identified => Self::Identified,
             FormStatus::Resolved => Self::Resolved,
-        }
-    }
-}
-
-/// Severity read from the form, using the "value" HTML fields.
-#[derive(Deserialize)]
-enum FormSeverity {
-    #[serde(rename = "partial-outage")]
-    PartialOutage,
-    #[serde(rename = "full-outage")]
-    FullOutage,
-    #[serde(rename = "performance-issue")]
-    PerformanceIssue,
-}
-
-impl From<FormSeverity> for Severity {
-    fn from(value: FormSeverity) -> Self {
-        match value {
-            FormSeverity::PartialOutage => Self::PartialOutage,
-            FormSeverity::FullOutage => Self::FullOutage,
-            FormSeverity::PerformanceIssue => Self::PerformanceIssue,
         }
     }
 }
@@ -190,19 +170,59 @@ pub(crate) async fn create_service(
     redirect("/admin")
 }
 
-#[derive(Deserialize)]
 pub struct FormIntervention {
     title: String,
     description: String,
-    #[serde(rename(deserialize = "start-date"))]
-    start_date: String,
-    #[serde(rename = "estimated-duration")]
+    start_date: NaiveDateTime,
     estimated_duration: u64,
-    severity: FormSeverity,
+    severity: Severity,
+    services: Vec<u64>,
+}
 
-    // TODO: support multiple services at once! but first, serde_urlencoded must be fixed :/
-    //services: Vec<u64>,
-    services: u64,
+/// Very manually parse the content of the intervention form, since sending multiple values with
+/// the same key may or may not be valid for urlencoding sequences.
+/// TODO my eyes bleed, fix/fork serde_urlencoded
+impl TryFrom<axum::body::Bytes> for FormIntervention {
+    type Error = anyhow::Error;
+
+    fn try_from(value: axum::body::Bytes) -> Result<Self, Self::Error> {
+        let mut title = None;
+        let mut description = None;
+        let mut start_date = None;
+        let mut estimated_duration = None;
+        let mut severity = None;
+        let mut services = Vec::new();
+
+        for (key, val) in form_urlencoded::parse(&value) {
+            match &*key {
+                "title" => title = Some(val.to_string()),
+                "description" => description = Some(val.to_string()),
+                "start-date" => {
+                    start_date = Some(NaiveDateTime::parse_from_str(&val, "%Y-%m-%dT%H:%M")?)
+                }
+                "estimated-duration" => estimated_duration = Some(val.parse()?),
+                "severity" => {
+                    severity = Some(match &*val {
+                        "partial-outage" => Severity::PartialOutage,
+                        "full-outage" => Severity::FullOutage,
+                        "performance-issue" => Severity::PerformanceIssue,
+                        _ => anyhow::bail!("invalid severity"),
+                    })
+                }
+                "services" => services.push(val.parse()?),
+                _ => {}
+            }
+        }
+
+        Ok(FormIntervention {
+            title: title.context("missing title")?,
+            description: description.context("missing description")?,
+            start_date: start_date.context("missing start date")?,
+            estimated_duration: estimated_duration.context("missing estimated_duration")?,
+            severity: severity.context("missing severity")?,
+            services,
+        })
+    }
 }
 
 pub(crate) async fn create_intervention_form(
@@ -230,15 +250,17 @@ pub(crate) async fn create_intervention_form(
 
 pub(crate) async fn create_intervention(
     Extension(ctx): Extension<Arc<AppContext>>,
-    Form(payload): Form<FormIntervention>,
+    RawForm(request_bytes): RawForm,
 ) -> impl IntoResponse {
-    // TODO check that it works also with non-Firefox browsers?
-    let Ok(start_date) = NaiveDateTime::parse_from_str(&payload.start_date, "%Y-%m-%dT%H:%M") else {
-        // Couldn't parse, likely invalid input.
-        return (
-            StatusCode::BAD_REQUEST,
-            Html("Invalid start date").into_response(),
-        );
+    let payload = match FormIntervention::try_from(request_bytes) {
+        Ok(payload) => payload,
+        Err(err) => {
+            log::error!("error when parsing new-intervention request: {err:#}");
+            return (
+                StatusCode::BAD_REQUEST,
+                Html("invalid request").into_response(),
+            );
+        }
     };
 
     let intervention = Intervention {
@@ -246,10 +268,10 @@ pub(crate) async fn create_intervention(
         title: payload.title,
         description: Some(payload.description),
         status: Status::Identified,
-        start_date,
+        start_date: payload.start_date,
         estimated_duration: Some(payload.estimated_duration as i64),
         end_date: None,
-        severity: payload.severity.into(),
+        severity: payload.severity,
         is_planned: false,
     };
 
@@ -260,20 +282,18 @@ pub(crate) async fn create_intervention(
             "when inserting a new intervention"
         );
 
-        //for sid in payload.services {
-        let sid = payload.services;
-
-        let service = try500!(
-            Service::by_id(sid as i64, &mut conn).await,
-            "retrieving a service by id"
-        );
-        if service.is_none() {
-            return not_found("Service not found!");
+        for sid in payload.services {
+            let service = try500!(
+                Service::by_id(sid as i64, &mut conn).await,
+                "retrieving a service by id"
+            );
+            if service.is_none() {
+                return not_found(format!("Service with id {sid} doesn't exist!"));
+            }
+            if let Err(err) = Intervention::add_service(int_id, sid as i64, &mut conn).await {
+                log::error!("when adding a service to an intervention: {err}");
+            }
         }
-        if let Err(err) = Intervention::add_service(int_id, sid as i64, &mut conn).await {
-            log::error!("when adding a service to an intervention: {err}");
-        }
-        //}
 
         int_id
     };
