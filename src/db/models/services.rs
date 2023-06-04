@@ -1,3 +1,4 @@
+use serde::Serialize;
 use sqlx::AnyConnection;
 
 #[derive(sqlx::FromRow)]
@@ -7,7 +8,7 @@ pub struct Service {
     pub url: String,
 }
 
-#[derive(sqlx::FromRow)]
+#[derive(sqlx::FromRow, Serialize)]
 pub struct ServiceWithNumInterventions {
     pub name: String,
     pub url: String,
