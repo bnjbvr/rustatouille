@@ -46,6 +46,9 @@ pub(crate) struct AppContext {
     /// Templates for dynamic pages.
     templates: RwLock<Tera>,
 
+    /// Service-wide (lol) toast notification.
+    ///
+    /// One toast should be enough for everyone, right?
     toast: RwLock<Option<String>>,
 }
 
