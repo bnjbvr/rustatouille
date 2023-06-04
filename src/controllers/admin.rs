@@ -10,7 +10,10 @@ use serde::Deserialize;
 use tracing as log;
 
 use crate::{
-    db::{Intervention, Service, Severity, Status},
+    db::{
+        models::interventions::{Intervention, Severity, Status},
+        models::services::Service,
+    },
     AppContext,
 };
 
@@ -30,7 +33,7 @@ macro_rules! try500 {
 }
 
 pub(crate) async fn index(Extension(ctx): Extension<Arc<AppContext>>) -> impl IntoResponse {
-    let page = include_str!("./view/admin.html");
+    let page = include_str!("../view/admin.html");
 
     let (services, interventions) = {
         let mut conn = ctx.db_connection.lock().await;
@@ -52,7 +55,7 @@ pub(crate) async fn index(Extension(ctx): Extension<Arc<AppContext>>) -> impl In
         &services
             .into_iter()
             .map(|s| {
-                include_str!("./view/service-fragment.html")
+                include_str!("../view/service-fragment.html")
                     .replace("{service.url}", &s.url)
                     .replace("{service.title}", &s.name)
                     .replace(
@@ -69,7 +72,7 @@ pub(crate) async fn index(Extension(ctx): Extension<Arc<AppContext>>) -> impl In
         &interventions
             .into_iter()
             .map(|i| {
-                include_str!("./view/intervention-fragment.html")
+                include_str!("../view/intervention-fragment.html")
                     .replace("{intervention.title}", &i.title)
                     .replace("{intervention.start_date}", &i.start_date.to_string())
                     .replace("{intervention.severity}", i.severity.kebab_case())
@@ -93,7 +96,7 @@ pub(crate) async fn index(Extension(ctx): Extension<Arc<AppContext>>) -> impl In
 }
 
 pub async fn create_service_form() -> Html<&'static str> {
-    Html(include_str!("./view/new-service.html"))
+    Html(include_str!("../view/new-service.html"))
 }
 
 #[derive(Deserialize)]
@@ -156,7 +159,7 @@ pub(crate) async fn create_intervention_form(
         .join("\n");
 
     let page =
-        include_str!("./view/new-intervention.html").replace("{{SERVICES}}", &services_string);
+        include_str!("../view/new-intervention.html").replace("{{SERVICES}}", &services_string);
 
     (StatusCode::OK, Html(page).into_response())
 }
