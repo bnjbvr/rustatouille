@@ -39,7 +39,7 @@ macro_rules! try500 {
 }
 
 fn not_found(text: &'static str) -> (StatusCode, Response) {
-    return (StatusCode::NOT_FOUND, Html(text).into_response());
+    (StatusCode::NOT_FOUND, Html(text).into_response())
 }
 
 fn redirect(to_url: &'static str) -> (StatusCode, Response) {
@@ -110,7 +110,7 @@ impl From<&Intervention> for AdminRenderIntervention {
     fn from(value: &Intervention) -> Self {
         Self {
             title: value.title.clone(),
-            start_date: value.start_date.clone(),
+            start_date: value.start_date,
             severity_css: value.severity.to_css_class().to_owned(),
             severity_label: value.severity.label().to_owned(),
             estimated_duration: value.estimated_duration,
