@@ -1,53 +1,51 @@
-<!DOCTYPE html>
-<html>
-    <head>
-        <title></title>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-		<link rel="stylesheet" type="text/css" href="/style.css" />
-		<link rel="stylesheet" type="text/css" href="/admin.css" />
-    </head>
-    <body>
-        <main class="box">
-            <header>
-                <h1>New intervention</h1>
-            </header>
-            <form action="/admin/api/intervention" method="post">
-                <p>
-                    <label for="title-field">Title:</label>
-                    <input id="title-field" name="title" type="text" maxlength="255" required />
-                </p>
-                <p>
-                    <label for="description-field">Description:</label><br />
-                    <textarea id="description-field" name="description" required></textarea>
-                </p>
-                <p>
-                    <label for="start-date-field">Planned date:</label>
-                    <input id="start-date-field" name="start-date" type="datetime-local" required />
-                </p>
-                <p>
-                    <label for="estimated-duration-field">Estimated duration (in minutes):</label>
-                    <input id="estimated-duration-field" name="estimated-duration" type="number" required />
-                </p>
-                <p>
-                    Severity:
-                    <input id="severity-partial-outage-field" name="severity" type="radio" value="partial-outage" required />
-                    <label for="severity-partial-outage-field">Partial outage</label>
-                    <input id="severity-full-outage-field" name="severity" type="radio" value="full-outage" required />
-                    <label for="severity-full-outage-field">Full outage</label>
-                    <input id="severity-performance-issue-field" name="severity" type="radio" value="performance-issue" required />
-                    <label for="severity-performance-issue-field">Performance issue</label>
-                </p>
-                <p>
-                    <label for="services-field">Impacted services:</label><br />
-                    <select id="services-field" name="services" multiple required>
-                        {{SERVICES}}
-                    </select>
-                </p>
-                <p class="center">
-                    <input type="submit" class="btn" value="Create an intervention" />
-                </p>
-            </form>
-        </main>
-    </body>
-</html>
+{% extends "base.html" %}
+
+{% block title %}Ajouter une intervention{% endblock %}
+
+{% block extra_headers %}
+<link rel="stylesheet" type="text/css" href="/admin.css" />
+{% endblock extra_headers %}
+
+{% block body %}
+<header>
+    <h1>New intervention</h1>
+</header>
+<form action="/admin/api/intervention" method="post">
+    <p>
+        <label for="title-field">Title:</label>
+        <input id="title-field" name="title" type="text" maxlength="255" required />
+    </p>
+    <p>
+        <label for="description-field">Description:</label><br />
+        <textarea id="description-field" name="description" required></textarea>
+    </p>
+    <p>
+        <label for="start-date-field">Planned date:</label>
+        <input id="start-date-field" name="start-date" type="datetime-local" required />
+    </p>
+    <p>
+        <label for="estimated-duration-field">Estimated duration (in minutes):</label>
+        <input id="estimated-duration-field" name="estimated-duration" type="number" required />
+    </p>
+    <p>
+        Severity:
+        <input id="severity-partial-outage-field" name="severity" type="radio" value="partial-outage" required />
+        <label for="severity-partial-outage-field">Partial outage</label>
+        <input id="severity-full-outage-field" name="severity" type="radio" value="full-outage" required />
+        <label for="severity-full-outage-field">Full outage</label>
+        <input id="severity-performance-issue-field" name="severity" type="radio" value="performance-issue" required />
+        <label for="severity-performance-issue-field">Performance issue</label>
+    </p>
+    <p>
+        <label for="services-field">Impacted services:</label><br />
+        <select id="services-field" name="services" multiple required>
+            {% for service in services %}
+                <option value="{{ service.id }}">{{service.name}}</option>
+            {% endfor %}
+        </select>
+    </p>
+    <p class="center">
+        <input type="submit" class="btn" value="Create an intervention" />
+    </p>
+</form>
+{% endblock body %}

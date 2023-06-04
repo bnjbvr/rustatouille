@@ -122,7 +122,7 @@ pub(crate) async fn index(Extension(ctx): Extension<Arc<AppContext>>) -> impl In
     };
 
     // TODO: render intervention.description as Markdown
-    let render_ctx = try500!(
+    let mut render_ctx = try500!(
         tera::Context::from_serialize(AdminTemplateCtx {
             interventions: interventions.iter().map(From::from).collect(),
             services,
@@ -130,16 +130,36 @@ pub(crate) async fn index(Extension(ctx): Extension<Arc<AppContext>>) -> impl In
         "preparing context for admin template"
     );
 
+    {
+        let toast = ctx.toast.write().unwrap().take();
+        if let Some(t) = toast {
+            render_ctx.insert("toast_success", &t);
+        }
+    }
+
     let page = try500!(
-        ctx.templates.render("admin.html", &render_ctx),
+        ctx.templates
+            .read()
+            .unwrap()
+            .render("admin.html", &render_ctx),
         "rendering admin template"
     );
 
     (StatusCode::OK, Html(page).into_response())
 }
 
-pub async fn create_service_form() -> Html<&'static str> {
-    Html(include_str!("../../templates/new-service.html"))
+pub(crate) async fn create_service_form(
+    Extension(ctx): Extension<Arc<AppContext>>,
+) -> impl IntoResponse {
+    let page = try500!(
+        ctx.templates
+            .read()
+            .unwrap()
+            .render("new-service.html", &tera::Context::new()),
+        "rendering new-intervention template"
+    );
+
+    (StatusCode::OK, Html(page).into_response())
 }
 
 #[derive(Deserialize)]
@@ -166,6 +186,8 @@ pub(crate) async fn create_service(
         let id = try500!(s_id, "inserting a new service");
         log::trace!("service {} created with id {}", service.name, id);
     }
+
+    *ctx.toast.write().unwrap() = Some(format!("Service {} created!", service.name));
 
     redirect("/admin")
 }
@@ -236,14 +258,37 @@ pub(crate) async fn create_intervention_form(
         )
     };
 
-    let services_string = services
-        .into_iter()
-        .map(|s| format!(r#"<option value="{}">{}</option>"#, s.id.unwrap(), s.name))
-        .collect::<Vec<_>>()
-        .join("\n");
+    #[derive(Serialize)]
+    struct ServiceRenderCtx {
+        id: i64,
+        name: String,
+    }
 
-    let page = include_str!("../../templates/new-intervention.html")
-        .replace("{{SERVICES}}", &services_string);
+    #[derive(Serialize)]
+    struct CreateInterventionFormRenderCtx {
+        services: Vec<ServiceRenderCtx>,
+    }
+
+    let render_ctx = try500!(
+        tera::Context::from_serialize(CreateInterventionFormRenderCtx {
+            services: services
+                .into_iter()
+                .map(|s| ServiceRenderCtx {
+                    id: s.id.unwrap(),
+                    name: s.name,
+                })
+                .collect(),
+        }),
+        "preparing context for new-intervention template"
+    );
+
+    let page = try500!(
+        ctx.templates
+            .read()
+            .unwrap()
+            .render("new-intervention.html", &render_ctx),
+        "rendering new-intervention template"
+    );
 
     (StatusCode::OK, Html(page).into_response())
 }
@@ -325,10 +370,10 @@ pub(crate) async fn create_intervention(
         log::error!("unable to write intervention page @ {path:?}: {err}");
     }
 
+    // TODO i18n
+    *ctx.toast.write().unwrap() = Some(format!("Intervention {} created!", intervention.title));
+
     // TODO regenerate index.html
 
-    (
-        StatusCode::CREATED,
-        Html(r#"<a href="/admin">It worked!</a>"#).into_response(),
-    )
+    redirect("/admin")
 }

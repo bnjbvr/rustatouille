@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>{% block title %}{% endblock title %}</title>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="stylesheet" type="text/css" href="/style.css" />
+        {% block extra_headers %}
+        {% endblock extra_headers %}
+    </head>
+    <body>
+        <main class="box">
+            {% block body %}{% endblock body %}
+        </main>
+    </body>
+</html>
