@@ -1,58 +1,57 @@
-<!DOCTYPE html>
-<html>
-    <head>
-        <title></title>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-		<link rel="stylesheet" type="text/css" href="./style.css" />
-		<link rel="stylesheet" type="text/css" href="./admin.css" />
-    </head>
-    <body>
-        <main class="box">
+{% extends "base.html" %}
+
+{% block title %}Administration{% endblock %}
+
+{% block extra_headers %}
+<link rel="stylesheet" type="text/css" href="/admin.css" />
+{% endblock extra_headers %}
+
+{% block body %}
+<header>
+    <h1>Administration</h1>
+</header>
+
+<div class="list interventions">
+    <header>
+        <h2>Interventions</h2>
+        <a href="/admin/intervention/new" class="btn">Plan a new intervention</a>
+    </header>
+
+    {% for intervention in interventions %}
+        <section>
             <header>
-                <h1>Administration</h1>
+                <h3>{{ intervention.title}}</h3>
+                <p>{{ intervention.start_date }}</p>
             </header>
+            <p>
+                <em>Severity:</em> <strong class="{{ intervention.severity_css }}">{{ intervention.severity_label }}</strong>
+                <em>Estimated duration:</em> <strong>{{ intervention.estimated_duration }} minutes</strong>
+            </p>
+            <p>{{ intervention.description }}</p>
+        </section>
+    {% endfor %}
+</div>
 
-            <div class="list interventions">
-                <header>
-                    <h2>Interventions</h2>
-                    <a href="/admin/intervention/new" class="btn">Plan a new intervention</a>
-                </header>
+<div class="list services">
+    <header>
+        <h2>Monitored services</h2>
+        <a href="/admin/service/new" class="btn">Add a new service</a>
+    </header>
 
-                {% for intervention in interventions %}
-                    <section>
-                        <header>
-                            <h3>{{ intervention.title}}</h3>
-                            <p>{{ intervention.start_date }}</p>
-                        </header>
-                        <p>
-                            <em>Severity:</em> <strong class="{{ intervention.severity_css }}">{{ intervention.severity_label }}</strong>
-                            <em>Estimated duration:</em> <strong>{{ intervention.estimated_duration }} minutes</strong>
-                        </p>
-                        <p>{{ intervention.description }}</p>
-                    </section>
-                {% endfor %}
-            </div>
+    {% for service in services %}
+        <section>
+            <header>
+                <h3> Titre
+                    <a href="{{service.url}}" target="_blank">{{service.name}}</a>
+                </h3>
+                <p>{{service.num_interventions}}</p>
+            </header>
+        </section>
+    {% endfor %}
+</div>
 
-            <div class="list services">
-                <header>
-                    <h2>Monitored services</h2>
-                    <a href="/admin/service/new" class="btn">Add a new service</a>
-                </header>
+{% if toast_success %}
+<div class="toast success">{{ toast_success }}</div>
+{% endif %}
 
-                {% for service in services %}
-                    <section>
-                        <header>
-                            <h3>
-                                <a href="{{service.url}}" target="_blank">{{service.name}}</a>
-                            </h3>
-                            <p>{{service.num_interventions}}</p>
-                        </header>
-                    </section>
-                {% endfor %}
-            </div>
-        </main>
-
-        <!--<div class="toast success">Intervention {title} created!</div>-->
-    </body>
-</html>
+{% endblock body %}

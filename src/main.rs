@@ -3,12 +3,13 @@ use axum::{
     routing::{get, post},
     Extension, Router,
 };
+use notify::{RecursiveMode, Watcher};
 use sqlx::AnyConnection;
 use std::{
     env,
     net::Ipv4Addr,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, RwLock},
 };
 use std::{fs, net::SocketAddr};
 use tera::Tera;
@@ -43,7 +44,9 @@ pub(crate) struct AppContext {
     db_connection: Mutex<AnyConnection>,
 
     /// Templates for dynamic pages.
-    templates: Tera,
+    templates: RwLock<Tera>,
+
+    toast: RwLock<Option<String>>,
 }
 
 fn parse_app_config() -> anyhow::Result<AppConfig> {
@@ -117,7 +120,8 @@ async fn real_main() -> anyhow::Result<()> {
     let ctx = Arc::new(AppContext {
         config,
         db_connection: Mutex::new(conn),
-        templates,
+        templates: RwLock::new(templates),
+        toast: RwLock::new(None),
     });
 
     // Generate the full web site initially.
@@ -143,8 +147,10 @@ async fn real_main() -> anyhow::Result<()> {
             post(controllers::admin::create_intervention),
         );
 
+    let mut _watcher = None;
     if ctx.config.dev_server {
         app = app.route("/*path", get(controllers::r#static::get)); // catch-all
+        _watcher = Some(setup_hot_reload(ctx.clone()).await?);
     }
 
     app = app.layer(Extension(ctx.clone()));
@@ -158,6 +164,46 @@ async fn real_main() -> anyhow::Result<()> {
         .await?;
 
     Ok(())
+}
+
+async fn setup_hot_reload(app: Arc<AppContext>) -> anyhow::Result<notify::RecommendedWatcher> {
+    let rt_handle = tokio::runtime::Handle::current();
+
+    let mut watcher =
+        notify::recommended_watcher(move |res: notify::Result<notify::Event>| match res {
+            Ok(event) => {
+                if !event.paths.iter().any(|path| {
+                    if let Some(ext) = path.extension() {
+                        ext == "html"
+                    } else {
+                        false
+                    }
+                }) {
+                    return;
+                }
+
+                match event.kind {
+                    notify::EventKind::Create(_)
+                    | notify::EventKind::Modify(_)
+                    | notify::EventKind::Remove(_) => {
+                        // Trigger an update of the templates.
+                        let app = app.clone();
+                        rt_handle.spawn_blocking(move || {
+                            log::info!("Hot-reloading the templates!");
+                            let _ = app.templates.write().unwrap().full_reload();
+                        });
+                    }
+                    notify::EventKind::Access(_)
+                    | notify::EventKind::Any
+                    | notify::EventKind::Other => {}
+                }
+            }
+            Err(e) => tracing::warn!("watch error: {e:?}"),
+        })?;
+
+    watcher.watch(Path::new("./templates"), RecursiveMode::Recursive)?;
+
+    Ok(watcher)
 }
 
 #[tokio::main]
