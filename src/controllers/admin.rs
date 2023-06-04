@@ -322,19 +322,25 @@ pub(crate) async fn create_intervention(
 
     let id = {
         let mut conn = ctx.db_connection.lock().await;
-        let int_id = try500!(
-            Intervention::insert(&mut conn, &intervention).await,
-            "when inserting a new intervention"
-        );
 
-        for sid in payload.services {
+        // Check all the services exist before doing any write.
+        for sid in &payload.services {
             let service = try500!(
-                Service::by_id(sid as i64, &mut conn).await,
+                Service::by_id(*sid as i64, &mut conn).await,
                 "retrieving a service by id"
             );
             if service.is_none() {
                 return not_found(format!("Service with id {sid} doesn't exist!"));
             }
+        }
+
+        // All the services exists; confirm write.
+        let int_id = try500!(
+            Intervention::insert(&mut conn, &intervention).await,
+            "creating a new intervention"
+        );
+
+        for sid in payload.services {
             if let Err(err) = Intervention::add_service(int_id, sid as i64, &mut conn).await {
                 log::error!("when adding a service to an intervention: {err}");
             }
