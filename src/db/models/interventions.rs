@@ -3,7 +3,7 @@ use sqlx::{AnyConnection, Executor as _};
 
 use super::services::Service;
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Severity {
     PartialOutage,
     FullOutage,
@@ -11,8 +11,8 @@ pub enum Severity {
 }
 
 impl Severity {
-    pub fn to_css_class(&self) -> &str {
-        match *self {
+    pub fn to_css_class(self) -> &'static str {
+        match self {
             Severity::PartialOutage => "partial-outage",
             Severity::FullOutage => "full-outage",
             Severity::PerformanceIssue => "performance-issue",
@@ -28,8 +28,8 @@ impl Severity {
         }
     }
 
-    fn to_db_str(&self) -> &str {
-        match *self {
+    fn to_db_str(self) -> &'static str {
+        match self {
             Self::PartialOutage => "partial_outage",
             Self::FullOutage => "full_outage",
             Self::PerformanceIssue => "performance_issue",
@@ -46,7 +46,7 @@ impl Severity {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Status {
     Ongoing,
     UnderSurveillance,
@@ -55,8 +55,8 @@ pub enum Status {
 }
 
 impl Status {
-    fn to_db_str(&self) -> &str {
-        match *self {
+    fn to_db_str(self) -> &'static str {
+        match self {
             Self::Ongoing => "ongoing",
             Self::UnderSurveillance => "under_surveillance",
             Self::Identified => "identified",
@@ -75,7 +75,7 @@ impl Status {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Intervention {
     pub id: Option<i64>,
     pub start_date: NaiveDateTime,
@@ -137,6 +137,21 @@ where
     }
 }
 
+#[derive(Eq, Ord, PartialEq, PartialOrd, Clone, Copy)]
+pub struct ServiceId(pub i64);
+
+impl<'a, R: sqlx::Row> sqlx::FromRow<'a, R> for ServiceId
+where
+    &'a std::primitive::str: sqlx::ColumnIndex<R>,
+    i64: sqlx::decode::Decode<'a, R::Database>,
+    i64: sqlx::types::Type<R::Database>,
+{
+    fn from_row(row: &'a R) -> Result<Self, sqlx::Error> {
+        let id: i64 = row.try_get("id")?;
+        Ok(ServiceId(id))
+    }
+}
+
 impl Intervention {
     pub async fn insert(conn: &mut AnyConnection, i: &Intervention) -> anyhow::Result<i64> {
         let (id, ) = sqlx::query_as::<_, (i64, )>(
@@ -195,6 +210,24 @@ impl Intervention {
         Ok(())
     }
 
+    pub async fn get_service_ids(
+        id: i64,
+        conn: &mut AnyConnection,
+    ) -> anyhow::Result<Vec<ServiceId>> {
+        let ids = sqlx::query_as(
+            r#"
+            SELECT s.id FROM services AS s, interventions_services AS is_, interventions
+            WHERE interventions.id = $1
+            AND s.id == is_.service_id
+            AND interventions.id == is_.intervention_id
+        "#,
+        )
+        .bind(id)
+        .fetch_all(conn)
+        .await?;
+        Ok(ids)
+    }
+
     pub async fn get_services(id: i64, conn: &mut AnyConnection) -> anyhow::Result<Vec<Service>> {
         let services = sqlx::query_as::<_, Service>(
             r#"
@@ -208,5 +241,12 @@ impl Intervention {
         .fetch_all(conn)
         .await?;
         Ok(services)
+    }
+
+    pub fn is_ongoing(&self, now: NaiveDateTime) -> bool {
+        self.start_date < now && self.status != Status::Resolved
+    }
+    pub fn is_planned(&self, now: NaiveDateTime) -> bool {
+        self.start_date >= now && self.status != Status::Resolved
     }
 }

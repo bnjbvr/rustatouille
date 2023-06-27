@@ -3,137 +3,64 @@
 {% block title %}Statuts{% endblock title %}
 
 {% block body %}
+
 <h1>Services status</h1>
-<div class="ongoing-outage error">
-    <strong>{intervention.title} is actually on going on {intervention.services}.</strong>
-    Severity: {intervention.severity}, started at {intervention.start_date}, estimated duration {intervention.estimated_duration}.
-    <a href="#intervention-{intervention.id}">Read more</a>
-</div>
+
+{% for int in current_interventions %}
+    <div class="ongoing-outage error">
+    <strong>{{int.title}} is actually on going on {{int.services}}.</strong>
+    Severity: {{int.severity}}, started at {{int.start_date}}, estimated duration
+    {{int.estimated_duration}}.
+    <a href="#intervention-{{int.id}}">Read more</a>
+    </div>
+{% endfor %}
+
 <h2>Monitored services</h2>
-<!--
-Tu vas aimer
-Je propose que les tuiles soient ordonner ainsi :
-- En première celles qui ont des interventions en cours
-- Puis celles qui ont des interventions prévues
-- Puis celles qui n'ont pas d'interventions
-Dans chacune de ces catégories, il faut ensuite trier selon la sévérité de l'intervention (full outage > partial > performance)
--->
+
 <div class="tiles">
-    <section class="error">
+    {% for service in services %}
+    <section class="{{service.section_class}}">
         <h3>
-            <a href="https://framaspace.org">Framaspace</a>
-        </h2>
-        <p>One ongoing intervention</p>
-        <ul>
-            <li><a href="#intervention-1">Redémarrage des serveurs (08/01/2023)</a></li> <!-- Le lien redirige vers l'intervention correspondante ci-dessous -->
-        </ul>
+            <a href="{{service.url}}">{{service.title}}</a>
+        </h3>
+
+        {% if service.ongoing | length != 0 %}
+            <p>{{service.ongoing | length}} ongoing intervention{{ service.ongoing | length | pluralize }}</p>
+            <ul>
+                {% for p in service.ongoing %}
+                    <li><a href="#intervention-{{p.id}}">{{p.title}} ({{p.start_date}})</a></li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {% if service.planned | length != 0 %}
+            <p>{{service.planned | length}} planned intervention{{ service.planned | length | pluralize }}</p>
+            <ul>
+                {% for p in service.planned %}
+                    <li><a href="#intervention-{{p.id}}">{{p.title}} ({{p.start_date}})</a></li>
+                {% endfor %}
+            </ul>
+        {% endif %}
     </section>
-    <section class="error">
-        <h3>
-            <a href="{service.url}">{service.name}</a>
-        </h2>
-        <p>{service.interventions.length} ongoing interventions:</p>
-        <ul>
-            <li><a href="#intervention-{intervention.id}">{service.intervention.title} ({service.intervention.start_date})</a></li>
-            <li><a href="">Mise à jour de la base de données (02/02/2023)</a></li>
-        </ul>
-    </section>
-    <section class="warning">
-        <h3>
-            <a href="https://framamoula.org">Framamoula</a>
-        </h2>
-        <p>One ongoing intervention:</p>
-        <ul>
-            <li><a href="">Slowness of the service (27/12/2022)</a></li>
-        </ul>
-    </section>
-    <section class="success">
-        <h3>
-            <a href="https://framasphere.org">Framasphère</a>
-        </h2>
-        <p>One planned intervention</p>
-        <ul>
-            <li><a href="">Redémarrage des serveurs (27/01/2023)</a></li>
-        </ul>
-    </section>
-    <section class="success">
-        <h3>
-            <a href="https://framaspace.org">Framaspace</a>
-        </h2>
-        <p>No planned intervention</p>
-    </section>
-    <section class="success">
-        <h3>
-            <a href="https://framapad.org">Framapad</a>
-        </h2>
-        <p>Two planned interventions</p>
-    </section>
-    <section class="success">
-        <h3>
-            <a href="https://framasphere.org">Framasphère</a>
-        </h2>
-        <p>No planned intervention</p>
-    </section>
-    <section class="success">
-        <h3>
-            <a href="https://framaspace.org">Framaspace</a>
-        </h2>
-        <p>One ongoing intervention: </p>
-    </section>
-    <section class="success">
-        <h3>
-            <a href="https://framapad.org">Framapad</a>
-        </h2>
-        <p>No planned interventions</p>
-    </section>
-    <section class="success">
-        <h3>
-            <a href="https://framasphere.org">Framasphère</a>
-        </h2>
-        <p>No planned intervention</p>
-    </section>
-    <section class="success">
-        <h3>
-            <a href="https://framaspace.org">Framaspace</a>
-        </h2>
-        <p>No planned intervention: </p>
-    </section>
-    <section class="success">
-        <h3>
-            <a href="https://framapad.org">Framapad</a>
-        </h2>
-        <p>No planned interventions</p>
-    </section>
-    <section class="success">
-        <h3>
-            <a href="https://framasphere.org">Framasphère</a>
-        </h2>
-        <p>No planned intervention</p>
-    </section>
+    {% endfor %}
 </div>
+
 <h2>Interventions</h2>
+
 <div class="list interventions">
-    <section>
-        <header>
-            <h3>Ceci est le titre de l'intervention</h3>
-            <p>13/02/2023 08h30</p>
-        </header>
-        <p>
-            <em>Severity:</em> <strong class="full-outage">Full outage</strong>
-            <em>Estimated duration:</em> <strong>120 minutes</strong>
-        </p>
-        <p>Ceci est une description d'intervention WALA TAVU!</p>
-    </section>
-    <section>
-        <header>
-            <h3>Ceci est le titre de l'intervention</h3>
-            <p>15/02/2023 08h30</p>
-        </header>
-        <p>
-            <em>Severity:</em> <strong class="partial-outage">Partial outage</strong>
-            <em>Estimated duration:</em> <strong>15 minutes</strong>
-        </p>
-        <p>Ceci est une description d'intervention WALA TAVU!</p>
-    </section>
+    {% for int in interventions %}
+        <section>
+            <header>
+                <h3 id="intervention-{{int.id}}">{{ int.title }}</h3>
+                <p>{{ int.start_date }}</p>
+            </header>
+            <p>
+                <em>Severity:</em> <strong class="{{int.severity_class}}">{{int.severity}}</strong>
+                <em>Estimated duration:</em> <strong>{{int.estimated_duration}}</strong>
+            </p>
+            <p>{{ int.rendered_description }}</p>
+        </section>
+    {% endfor %}
 </div>
+
 {% endblock body %}
