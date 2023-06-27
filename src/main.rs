@@ -29,6 +29,11 @@ pub(crate) struct AppConfig {
     /// Path to the cache directory
     cache_dir: PathBuf,
 
+    /// Path to the templates.
+    ///
+    /// Defaults to "./templates".
+    template_dir: PathBuf,
+
     /// Path to the sqlite file
     db_connection_string: String,
 
@@ -43,7 +48,7 @@ pub(crate) struct AppContext {
     /// Connection pool to the database.
     db_connection: Mutex<AnyConnection>,
 
-    /// Templates for dynamic pages.
+    /// Template engine for dynamic pages.
     templates: RwLock<Tera>,
 
     /// Service-wide (lol) toast notification.
@@ -73,6 +78,12 @@ fn parse_app_config() -> anyhow::Result<AppConfig> {
         fs::create_dir(&cache_dir).context("couldn't create cache directory")?;
     }
 
+    let template_dir = env::var("TEMPLATE_DIR").unwrap_or_else(|_| "./templates/".to_owned());
+    let template_dir = PathBuf::from(template_dir);
+    if !template_dir.is_dir() {
+        anyhow::bail!("the template directory doesn't exist");
+    }
+
     let db_connection_env =
         PathBuf::from(env::var("DB_CONNECTION").context("missing DB_CONNECTION")?);
     let db_connection_string = db_connection_env
@@ -89,22 +100,26 @@ fn parse_app_config() -> anyhow::Result<AppConfig> {
         port,
         interface_ipv4,
         cache_dir,
+        template_dir,
         db_connection_string,
         dev_server,
     })
 }
 
 /// Copy the static files to the cache directory.
-///
-/// TODO: should also do it on change on disk, in the DEV_SERVER mode?
-fn copy_static_files_to_cache_dir(cache_dir: &Path) -> anyhow::Result<()> {
-    // Copy the style.
-    let style = include_str!("../templates/style.css");
-    fs::write(cache_dir.join("style.css"), style)?;
-
-    let style = include_str!("../templates/admin.css");
-    fs::write(cache_dir.join("admin.css"), style)?;
-
+fn copy_static_files_to_cache_dir(config: &AppConfig) -> anyhow::Result<()> {
+    // Copy CSS files.
+    for dir_entry in fs::read_dir(&config.template_dir)? {
+        let dir_entry = dir_entry?;
+        let path = dir_entry.path();
+        if path.extension().map_or(false, |ext| ext == "css") {
+            let Some(file_name) = path.file_name() else {
+                log::warn!("CSS file doesn't have a name??");
+                continue;
+            };
+            fs::copy(&path, config.cache_dir.join(file_name))?;
+        }
+    }
     Ok(())
 }
 
@@ -118,7 +133,9 @@ async fn real_main() -> anyhow::Result<()> {
     // Start the database.
     let conn = db::open(&config.db_connection_string).await?;
 
-    let templates = Tera::new("templates/*.html").context("initializing tera")?;
+    // Initialize the template engine.
+    let templates = Tera::new(&config.template_dir.join("*.html").to_string_lossy())
+        .context("initializing tera")?;
 
     let ctx = Arc::new(AppContext {
         config,
@@ -128,7 +145,7 @@ async fn real_main() -> anyhow::Result<()> {
     });
 
     // Generate the full web site initially.
-    copy_static_files_to_cache_dir(&ctx.config.cache_dir)?;
+    copy_static_files_to_cache_dir(&ctx.config)?;
 
     // Configure and start the web server.
     let mut app = Router::new()
@@ -175,30 +192,45 @@ async fn setup_hot_reload(app: Arc<AppContext>) -> anyhow::Result<notify::Recomm
     let mut watcher =
         notify::recommended_watcher(move |res: notify::Result<notify::Event>| match res {
             Ok(event) => {
-                if !event.paths.iter().any(|path| {
-                    if let Some(ext) = path.extension() {
-                        ext == "html"
-                    } else {
-                        false
-                    }
-                }) {
-                    return;
-                }
-
                 match event.kind {
                     notify::EventKind::Create(_)
                     | notify::EventKind::Modify(_)
                     | notify::EventKind::Remove(_) => {
-                        // Trigger an update of the templates.
-                        let app = app.clone();
-                        rt_handle.spawn_blocking(move || {
-                            log::info!("Hot-reloading the templates!");
-                            let _ = app.templates.write().unwrap().full_reload();
-                        });
+                        // Follow through.
                     }
                     notify::EventKind::Access(_)
                     | notify::EventKind::Any
-                    | notify::EventKind::Other => {}
+                    | notify::EventKind::Other => {
+                        // Nothing to do.
+                        return;
+                    }
+                }
+
+                // If any path is a CSS or HTML file,
+                if event.paths.iter().any(|path| {
+                    if let Some(ext) = path.extension() {
+                        ext == "css" || ext == "html"
+                    } else {
+                        false
+                    }
+                }) {
+                    let app = app.clone();
+
+                    // spawn a task that will hot-reload the templates, and regenerate all the
+                    // files.
+                    rt_handle.spawn_blocking(move || {
+                        log::info!("Hot-reloading the CSS!");
+                        if let Err(err) = copy_static_files_to_cache_dir(&app.config) {
+                            log::error!("error when reloading CSS: {err:#}");
+                        }
+
+                        log::info!("Hot-reloading the templates!");
+                        if let Err(err) = app.templates.write().unwrap().full_reload() {
+                            log::error!("error when reloading templates: {err:#}");
+                        }
+
+                        // TODO regenerate thingies based on the templates!
+                    });
                 }
             }
             Err(e) => tracing::warn!("watch error: {e:?}"),
