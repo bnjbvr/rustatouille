@@ -6,10 +6,10 @@ use axum::{
     response::{Html, IntoResponse},
     Extension, Form,
 };
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use std::error::Error as _;
-use std::fs;
+
 use std::sync::Arc;
 use tracing as log;
 
@@ -187,6 +187,10 @@ pub(crate) async fn create_service(
         log::trace!("service {} created with id {}", service.name, id);
     }
 
+    if let Err(err) = ctx.regenerate_pages.send(()).await {
+        log::error!("unable to regenerate page: {err:#}");
+    }
+
     *ctx.toast.write().unwrap() = Some(format!("Service {} created!", service.name));
 
     redirect("/admin")
@@ -320,7 +324,7 @@ pub(crate) async fn create_intervention(
         is_planned: false,
     };
 
-    let id = {
+    {
         let mut conn = ctx.db_connection.lock().await;
 
         // Check all the services exist before doing any write.
@@ -345,41 +349,14 @@ pub(crate) async fn create_intervention(
                 log::error!("when adding a service to an intervention: {err}");
             }
         }
-
-        int_id
     };
-
-    // TODO spawn a regenerate static page task
-
-    let intervention_page = r#"
-    <html>
-    <head><title>rustatouille - {{title}}</title></head>
-    <body>
-    <h1>{{title}}</h1>
-    <h3>{{date}}</h3>
-    <p>{{description}}</p>
-    </body>
-    </html>
-    "#
-    .replace("{{title}}", &intervention.title)
-    .replace(
-        "{{description}}",
-        intervention.description.as_ref().unwrap(),
-    )
-    .replace(
-        "{{date}}",
-        &DateTime::<Utc>::from_utc(intervention.start_date, Utc).to_rfc2822(),
-    ); // TODO better date display
-
-    let path = ctx.config.cache_dir.join(format!("{id}.html"));
-    if let Err(err) = fs::write(&path, intervention_page) {
-        log::error!("unable to write intervention page @ {path:?}: {err}");
-    }
 
     // TODO i18n
     *ctx.toast.write().unwrap() = Some(format!("Intervention {} created!", intervention.title));
 
-    // TODO regenerate index.html
+    if let Err(err) = ctx.regenerate_pages.send(()).await {
+        log::error!("unable to regenerate page: {err:#}");
+    }
 
     redirect("/admin")
 }

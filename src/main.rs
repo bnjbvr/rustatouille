@@ -13,11 +13,12 @@ use std::{
 };
 use std::{fs, net::SocketAddr};
 use tera::Tera;
-use tokio::sync::Mutex;
+use tokio::sync::{mpsc, Mutex};
 use tracing as log;
 
 mod controllers;
 mod db;
+mod regenerate;
 
 pub(crate) struct AppConfig {
     /// which port the app is listening on
@@ -55,6 +56,8 @@ pub(crate) struct AppContext {
     ///
     /// One toast should be enough for everyone, right?
     toast: RwLock<Option<String>>,
+
+    regenerate_pages: mpsc::Sender<()>,
 }
 
 fn parse_app_config() -> anyhow::Result<AppConfig> {
@@ -137,15 +140,21 @@ async fn real_main() -> anyhow::Result<()> {
     let templates = Tera::new(&config.template_dir.join("*.html").to_string_lossy())
         .context("initializing tera")?;
 
+    let (sender, receiver) = mpsc::channel(128);
+
     let ctx = Arc::new(AppContext {
         config,
         db_connection: Mutex::new(conn),
         templates: RwLock::new(templates),
         toast: RwLock::new(None),
+        regenerate_pages: sender,
     });
+
+    tokio::spawn(regenerate::pages(ctx.clone(), receiver));
 
     // Generate the full web site initially.
     copy_static_files_to_cache_dir(&ctx.config)?;
+    ctx.regenerate_pages.send(()).await?;
 
     // Configure and start the web server.
     let mut app = Router::new()
@@ -229,7 +238,10 @@ async fn setup_hot_reload(app: Arc<AppContext>) -> anyhow::Result<notify::Recomm
                             log::error!("error when reloading templates: {err:#}");
                         }
 
-                        // TODO regenerate thingies based on the templates!
+                        log::info!("Regenerating pages!");
+                        if let Err(err) = app.regenerate_pages.blocking_send(()) {
+                            log::error!("error when regenerating pages: {err:#}");
+                        }
                     });
                 }
             }
