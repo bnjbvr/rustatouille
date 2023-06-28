@@ -185,7 +185,7 @@ async fn real_main() -> anyhow::Result<()> {
     app = app.layer(Extension(ctx.clone()));
 
     let listen_addr = SocketAddr::from((ctx.config.interface_ipv4, ctx.config.port));
-    log::debug!("listening on {}", listen_addr);
+    log::info!("listening on {}", listen_addr);
 
     // This, in fact, will never return.
     axum::Server::bind(&listen_addr)

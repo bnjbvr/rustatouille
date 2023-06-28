@@ -48,7 +48,7 @@ struct RegenerateIndexCtx {
 }
 
 async fn regenerate_index(ctx: &Arc<AppContext>) -> anyhow::Result<()> {
-    log::info!("regenerating the index");
+    log::debug!("regenerating the index");
     let timer = Instant::now();
 
     let mut conn = ctx.db_connection.lock().await;
@@ -187,7 +187,7 @@ async fn regenerate_index(ctx: &Arc<AppContext>) -> anyhow::Result<()> {
 
     fs::write(ctx.config.cache_dir.join("index.html"), index_content)?;
 
-    log::info!(
+    log::debug!(
         "regenerating the index took {}ms",
         timer.elapsed().as_millis()
     );
