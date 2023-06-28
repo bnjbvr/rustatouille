@@ -162,6 +162,12 @@ checksum = "9e1b586273c5702936fe7b7d6896644d8be71e6314cfe09d3167c95f712589e8"
 
 [[package]]
 name = "base64"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ea22880d78093b0cbe17c89f64a7d457941e65759157ec6cb31a31d652b05e5"
+
+[[package]]
+name = "base64"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4a4ddaa51a5bc52a6948f74c06d20aaaddb71924eab79b8c97a8c556e942d6a"
@@ -1436,6 +1442,7 @@ dependencies = [
  "sqlx",
  "tera",
  "tokio",
+ "tower-http",
  "tracing",
  "tracing-subscriber",
 ]
@@ -1966,6 +1973,7 @@ version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8bd22a874a2d0b70452d5597b12c537331d49060824a95f49f108994f94aa4c"
 dependencies = [
+ "base64 0.20.0",
  "bitflags 2.3.3",
  "bytes",
  "futures-core",
@@ -1973,6 +1981,7 @@ dependencies = [
  "http",
  "http-body",
  "http-range-header",
+ "mime",
  "pin-project-lite",
  "tower-layer",
  "tower-service",
