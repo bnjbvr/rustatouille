@@ -23,7 +23,7 @@ fn serve_static(path: &PathBuf) -> Result<impl IntoResponse, StatusCode> {
     let content_type = HeaderValue::from_static(match path.extension().and_then(|s| s.to_str()) {
         Some("css") => "text/css",
         Some("js") => "text/javascript",
-        Some("html") => "text/html",
+        Some("html") | Some("htm") => "text/html",
         _ => "text/plain",
     });
 
