@@ -15,6 +15,7 @@ use std::{
 use std::{fs, net::SocketAddr};
 use tera::Tera;
 use tokio::sync::{mpsc, Mutex};
+use tower_http::validate_request::ValidateRequestHeaderLayer;
 use tracing as log;
 
 mod controllers;
@@ -41,6 +42,9 @@ pub(crate) struct AppConfig {
 
     /// Should the server also respond to static queries, in dev mode?
     dev_server: bool,
+
+    /// What's the administrator password?
+    admin_password: String,
 }
 
 pub(crate) struct AppContext {
@@ -100,6 +104,8 @@ fn parse_app_config() -> anyhow::Result<AppConfig> {
         .to_lowercase();
     let dev_server = ["true", "yes", "y"].iter().any(|v| dev_server == *v);
 
+    let admin_password = env::var("ADMIN_PASSWORD").context("missing ADMIN_PASSWORD env")?;
+
     Ok(AppConfig {
         port,
         interface_ipv4,
@@ -107,6 +113,7 @@ fn parse_app_config() -> anyhow::Result<AppConfig> {
         template_dir,
         db_connection_string,
         dev_server,
+        admin_password,
     })
 }
 
@@ -161,24 +168,7 @@ async fn real_main() -> anyhow::Result<()> {
     ctx.regenerate_pages.send(()).await?;
 
     // Configure and start the web server.
-    let mut app = Router::new()
-        .route_with_tsr("/admin", get(controllers::admin::index))
-        .route_with_tsr(
-            "/admin/service/new",
-            get(controllers::admin::create_service_form),
-        )
-        .route_with_tsr(
-            "/admin/intervention/new",
-            get(controllers::admin::create_intervention_form),
-        )
-        .route_with_tsr(
-            "/admin/api/service",
-            post(controllers::admin::create_service),
-        )
-        .route_with_tsr(
-            "/admin/api/intervention",
-            post(controllers::admin::create_intervention),
-        );
+    let mut app = Router::new();
 
     let mut _watcher = None;
     if ctx.config.dev_server {
@@ -187,6 +177,25 @@ async fn real_main() -> anyhow::Result<()> {
             .route("/*path", get(controllers::r#static::get)); // catch-all
         _watcher = Some(setup_hot_reload(ctx.clone()).await?);
     }
+
+    let admin_router = Router::new()
+        .route("/", get(controllers::admin::index))
+        .route_with_tsr("/service/new", get(controllers::admin::create_service_form))
+        .route_with_tsr(
+            "/intervention/new",
+            get(controllers::admin::create_intervention_form),
+        )
+        .route_with_tsr("/api/service", post(controllers::admin::create_service))
+        .route_with_tsr(
+            "/api/intervention",
+            post(controllers::admin::create_intervention),
+        )
+        .route_layer(ValidateRequestHeaderLayer::basic(
+            "admin",
+            &ctx.config.admin_password,
+        ));
+
+    app = app.nest("/admin", admin_router);
 
     app = app.layer(Extension(ctx.clone()));
 
