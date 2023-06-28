@@ -195,6 +195,45 @@ async fn regenerate_index(ctx: &Arc<AppContext>) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[derive(Serialize)]
+struct FeedEntryCtx {
+    title: String,
+    /// TODO generate once and store in db?
+    feed_entry_id: String,
+    author: String,
+    link: String,
+    published: String,
+    updated: Option<String>,
+    content: String,
+}
+
+#[derive(Serialize)]
+struct FeedCtx {
+    title: String,
+    feed_url: String,
+    page_url: String,
+
+    /// Example: urn:uuid:[...]
+    /// TODO maybe generate once and store it in the db, in a global kv table?
+    feed_id: String,
+
+    /// Example: 2023-06-12T14:35:00+02:00
+    update_date: String,
+
+    entries: FeedEntryCtx,
+}
+
+async fn regenerate_feed(ctx: &Arc<AppContext>) -> anyhow::Result<()> {
+    // TODO
+    Ok(())
+}
+
+async fn regenerate_all(ctx: &Arc<AppContext>) -> anyhow::Result<()> {
+    regenerate_index(ctx).await?;
+    regenerate_feed(ctx).await?;
+    Ok(())
+}
+
 pub(crate) async fn pages(app: Arc<AppContext>, mut receiver: mpsc::Receiver<()>) {
     let mut start = false;
 
@@ -214,7 +253,7 @@ pub(crate) async fn pages(app: Arc<AppContext>, mut receiver: mpsc::Receiver<()>
                     continue;
                 }
 
-                res = regenerate_index(&app) => {
+                res = regenerate_all(&app) => {
                     start = false;
                     if let Err(err) = res {
                         log::error!("Unable to render the index: {err:#}");
