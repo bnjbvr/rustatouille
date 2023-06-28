@@ -9,7 +9,7 @@ use sqlx::AnyConnection;
 use std::{
     env,
     net::Ipv4Addr,
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::{Arc, RwLock},
 };
 use std::{fs, net::SocketAddr};
@@ -204,6 +204,8 @@ async fn real_main() -> anyhow::Result<()> {
 async fn setup_hot_reload(app: Arc<AppContext>) -> anyhow::Result<notify::RecommendedWatcher> {
     let rt_handle = tokio::runtime::Handle::current();
 
+    let template_dir = app.config.template_dir.clone();
+
     let mut watcher =
         notify::recommended_watcher(move |res: notify::Result<notify::Event>| match res {
             Ok(event) => {
@@ -254,7 +256,7 @@ async fn setup_hot_reload(app: Arc<AppContext>) -> anyhow::Result<notify::Recomm
             Err(e) => tracing::warn!("watch error: {e:?}"),
         })?;
 
-    watcher.watch(Path::new("./templates"), RecursiveMode::Recursive)?;
+    watcher.watch(&template_dir, RecursiveMode::Recursive)?;
 
     Ok(watcher)
 }
