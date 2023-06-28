@@ -3,6 +3,7 @@ use axum::{
     routing::{get, post},
     Extension, Router,
 };
+use axum_extra::routing::RouterExt as _;
 use notify::{RecursiveMode, Watcher};
 use sqlx::AnyConnection;
 use std::{
@@ -158,27 +159,29 @@ async fn real_main() -> anyhow::Result<()> {
 
     // Configure and start the web server.
     let mut app = Router::new()
-        .route("/admin", get(controllers::admin::index))
-        .route(
+        .route_with_tsr("/admin", get(controllers::admin::index))
+        .route_with_tsr(
             "/admin/service/new",
             get(controllers::admin::create_service_form),
         )
-        .route(
+        .route_with_tsr(
             "/admin/intervention/new",
             get(controllers::admin::create_intervention_form),
         )
-        .route(
+        .route_with_tsr(
             "/admin/api/service",
             post(controllers::admin::create_service),
         )
-        .route(
+        .route_with_tsr(
             "/admin/api/intervention",
             post(controllers::admin::create_intervention),
         );
 
     let mut _watcher = None;
     if ctx.config.dev_server {
-        app = app.route("/*path", get(controllers::r#static::get)); // catch-all
+        app = app
+            .route("/", get(controllers::r#static::get_root))
+            .route("/*path", get(controllers::r#static::get)); // catch-all
         _watcher = Some(setup_hot_reload(ctx.clone()).await?);
     }
 

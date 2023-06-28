@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.71"
 axum = "0.6.18"
+axum-extra = "0.7.4"
 chrono = { version = "0.4.24", features = ["serde"] }
 dotenvy = "0.15.7"
 form_urlencoded = "1.1.0"
