@@ -112,13 +112,16 @@ fn parse_app_config() -> anyhow::Result<AppConfig> {
 
 /// Copy the static files to the cache directory.
 fn copy_static_files_to_cache_dir(config: &AppConfig) -> anyhow::Result<()> {
-    // Copy CSS files.
+    // Copy CSS and JavaScript files.
     for dir_entry in fs::read_dir(&config.template_dir)? {
         let dir_entry = dir_entry?;
         let path = dir_entry.path();
-        if path.extension().map_or(false, |ext| ext == "css") {
+        if path
+            .extension()
+            .map_or(false, |ext| ext == "css" || ext == "js")
+        {
             let Some(file_name) = path.file_name() else {
-                log::warn!("CSS file doesn't have a name??");
+                log::warn!("Static file doesn't have a name??");
                 continue;
             };
             fs::copy(&path, config.cache_dir.join(file_name))?;
