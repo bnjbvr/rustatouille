@@ -5,6 +5,8 @@ mod fixtures;
 mod migrations;
 pub mod models;
 
+pub use fixtures::insert_fixtures;
+
 /// Open the database and run migrations at start.
 pub async fn open(path: &str) -> anyhow::Result<AnyConnection> {
     let mut conn = AnyConnection::connect(path)
