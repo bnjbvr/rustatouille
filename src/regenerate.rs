@@ -61,7 +61,11 @@ async fn regenerate_index(ctx: &Arc<AppContext>) -> anyhow::Result<()> {
     // Internally within a single category, sort by priority: full outage > partial > performance
     let services = Service::get_all(&mut conn).await?;
 
-    let interventions = Intervention::get_all(&mut conn).await?;
+    let mut interventions = Intervention::get_all(&mut conn).await?;
+
+    // Sort interventions: most recent go first.
+    interventions.sort_by_key(|int| -int.start_date.timestamp());
+
     let mut intervention_by_service: BTreeMap<ServiceId, Vec<&Intervention>> = BTreeMap::new();
 
     let mut interventions_ctx = Vec::with_capacity(interventions.len());
@@ -159,7 +163,7 @@ async fn regenerate_index(ctx: &Arc<AppContext>) -> anyhow::Result<()> {
         });
     }
 
-    // TODO sort them by start date?
+    // Current interventions are sorted because interventions are sorted.
     let current_interventions_ctx = interventions
         .iter()
         .zip(interventions_ctx.iter())
