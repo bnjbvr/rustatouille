@@ -10,6 +10,7 @@ use std::{
     env,
     net::Ipv4Addr,
     path::PathBuf,
+    process::exit,
     sync::{Arc, RwLock},
 };
 use std::{fs, net::SocketAddr};
@@ -17,6 +18,8 @@ use tera::Tera;
 use tokio::sync::{mpsc, Mutex};
 use tower_http::validate_request::ValidateRequestHeaderLayer;
 use tracing as log;
+
+use crate::db::insert_fixtures;
 
 mod controllers;
 mod db;
@@ -137,7 +140,7 @@ fn copy_static_files_to_cache_dir(config: &AppConfig) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn real_main() -> anyhow::Result<()> {
+async fn real_main(args: Vec<String>) -> anyhow::Result<()> {
     // Initialize tracing.
     tracing_subscriber::fmt::init();
 
@@ -145,7 +148,25 @@ async fn real_main() -> anyhow::Result<()> {
     let config = parse_app_config()?;
 
     // Start the database.
-    let conn = db::open(&config.db_connection_string).await?;
+    let mut conn = db::open(&config.db_connection_string).await?;
+
+    if let Some(first_arg) = args.get(0) {
+        match first_arg.as_str() {
+            "fixtures" => {
+                insert_fixtures(&mut conn).await?;
+                exit(0);
+            }
+
+            "serve" => {
+                // fallthrough
+            }
+
+            _ => {
+                eprintln!("Unknown parameter: {first_arg}");
+                exit(1);
+            }
+        }
+    }
 
     // Initialize the template engine.
     let templates = Tera::new(&config.template_dir.join("*.html").to_string_lossy())
@@ -274,5 +295,5 @@ async fn setup_hot_reload(app: Arc<AppContext>) -> anyhow::Result<notify::Recomm
 async fn main() -> anyhow::Result<()> {
     // Since this function is under the tokio::main macro, rust-analyzer has issues with it. Put
     // the main in the real_main function instead.
-    real_main().await
+    real_main(std::env::args().skip(1).collect()).await
 }
