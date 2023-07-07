@@ -10,6 +10,7 @@ pub struct Service {
 
 #[derive(sqlx::FromRow, Serialize)]
 pub struct ServiceWithNumInterventions {
+    pub id: i64,
     pub name: String,
     pub url: String,
     pub num_interventions: i64,

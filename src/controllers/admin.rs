@@ -77,24 +77,32 @@ impl From<FormStatus> for Status {
 
 #[derive(Debug, Serialize)]
 struct AdminRenderIntervention {
+    pub id: Option<i64>,
     pub title: String,
     pub start_date: NaiveDateTime,
+    pub end_date: Option<NaiveDateTime>,
     pub severity_css: String,
     pub severity_label: String,
     /// Estimated time it'll take to fix the issue, in minutes
     pub estimated_duration: Option<i64>,
     pub description: Option<String>,
+    pub status: String,
+    pub is_planned: String,
 }
 
 impl From<&Intervention> for AdminRenderIntervention {
     fn from(value: &Intervention) -> Self {
         Self {
+            id: value.id,
             title: value.title.clone(),
             start_date: value.start_date,
+            end_date: value.end_date,
             severity_css: value.severity.to_css_class().to_owned(),
             severity_label: value.severity.label().to_owned(),
             estimated_duration: value.estimated_duration,
             description: value.description.clone(),
+            status: value.status.label().to_owned(),
+            is_planned: value.is_planned.to_string(),
         }
     }
 }
