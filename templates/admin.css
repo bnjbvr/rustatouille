@@ -1,4 +1,5 @@
 .btn {
+    display: block;
     padding: .5rem .8rem;
     background-color: var(--primary);
     border: solid 1px var(--dark-primary);
@@ -6,6 +7,15 @@
     text-decoration: none;
     border-radius: 3px;
     font-weight: bold;
+}
+
+.btn path,
+.btn line {
+    fill: #fff;
+}
+
+.btn line {
+    stroke: #fff;
 }
 
 [type=text],
@@ -31,6 +41,21 @@ textarea {
     animation-fill-mode: forwards;
     animation-name: slidein;
     animation-direction: alternate;
+}
+
+.actions-cell {
+    width: 50px;
+}
+
+.actions {
+    display: flex;
+    gap: 1rem;
+}
+
+.actions .btn {
+    width: 15px;
+    height: 15px;
+    padding: 5px;
 }
 
 @keyframes slidein {

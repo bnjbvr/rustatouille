@@ -53,6 +53,16 @@ pub enum Status {
 }
 
 impl Status {
+    // TODO i18n???
+    pub fn label(&self) -> &str {
+        match *self {
+            Status::Ongoing => "Ongoing",
+            Status::UnderSurveillance => "Under surveillance",
+            Status::Identified => "Identified",
+            Status::Resolved => "Resolved",
+        }
+    }
+
     fn to_db_str(self) -> &'static str {
         match self {
             Self::Ongoing => "ongoing",

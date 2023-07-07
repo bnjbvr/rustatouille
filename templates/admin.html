@@ -11,43 +11,91 @@
     <h1>Administration</h1>
 </header>
 
-<div class="list interventions">
+<div>
     <header>
         <h2>Interventions</h2>
         <a href="/admin/intervention/new" class="btn">Plan a new intervention</a>
     </header>
 
+    <table>
+        <tr>
+            <th>Title</th>
+            <th>Start/End Date</th>
+            <th>Estimated duration</th>
+            <th>Service(s)</th>
+            <th>Severity</th>
+            <th>Description</th>
+            <th>Is planned</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
     {% for intervention in interventions %}
-        <section>
-            <header>
-                <h3>{{ intervention.title}}</h3>
-                <p>{{ intervention.start_date }}</p>
-            </header>
-            <p>
-                <em>Severity:</em> <strong class="{{ intervention.severity_css }}">{{ intervention.severity_label }}</strong>
-                <em>Estimated duration:</em> <strong>{{ intervention.estimated_duration }} minutes</strong>
-            </p>
-            <p>{{ intervention.description }}</p>
-        </section>
+        <tr>
+            <td>{{intervention.title}}</td>
+            <td>
+                {{intervention.start_date}}<br />
+                {{intervention.end_date}}
+            </td>
+            <td>{{intervention.estimated_duration}} min</td>
+            <td>TODO list the impacted services</td>
+            <td>
+                <strong class="{{intervention.severity_css}}">{{intervention.severity_label}}</strong>
+            </td>
+            <td>{{intervention.description}}</td>
+            <td>{{intervention.is_planned}}</td>
+            <td>{{intervention.status}}</td>
+            <td class="actions-cell">
+                <div class="actions">
+                    <a href="/admin/intervention/{{intervention.id}}/edit" class="btn" title="Edit the service">
+                        <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M14.846 1.403l3.752 3.753.625-.626A2.653 2.653 0 0015.471.778l-.625.625zm2.029 5.472l-3.752-3.753L1.218 15.028 0 19.998l4.97-1.217L16.875 6.875z" />
+                        </svg>
+                    </a>
+                </div>
+            </td>
+        </tr>
     {% endfor %}
+    </table>
 </div>
 
-<div class="list services">
+<div>
     <header>
         <h2>Monitored services</h2>
         <a href="/admin/service/new" class="btn">Add a new service</a>
     </header>
 
+    <table>
+        <tr>
+            <th>Service</th>
+            <th>Interventions</th>
+            <th>Actions</th>
+        </tr>
     {% for service in services %}
-        <section>
-            <header>
-                <h3> Titre
-                    <a href="{{service.url}}" target="_blank">{{service.name}}</a>
-                </h3>
-                <p>{{service.num_interventions}}</p>
-            </header>
-        </section>
+        <tr>
+            <td>
+                <a href="{{service.url}}" target="_blank">{{service.name}}</a>
+            </td>
+            <td>
+                <a href="/service/{{service.id}}">{{service.num_interventions}}</a>
+            </td>
+            <td class="actions-cell">
+                <div class="actions">
+                    <a href="/admin/service/{{service.id}}/edit" class="btn" title="Edit the service">
+                        <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M14.846 1.403l3.752 3.753.625-.626A2.653 2.653 0 0015.471.778l-.625.625zm2.029 5.472l-3.752-3.753L1.218 15.028 0 19.998l4.97-1.217L16.875 6.875z" />
+                        </svg>
+                    </a>
+                    <a href="/admin/intervention/new?serviceId={{service.id}}" class="btn" title="Add an intervention to this service">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <line x1="0" y1="12" x2="24" y2="12" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                            <line x1="12" y1="0" x2="12" y2="24" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </a>
+                </div>
+            </td>
+        </tr>
     {% endfor %}
+    </table>
 </div>
 
 {% if toast_success %}

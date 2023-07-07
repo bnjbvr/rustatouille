@@ -8,18 +8,30 @@ body {
 }
 
 body {
+    display: flex;
+    justify-content: center;
     margin: 0;
-    font-family: Helvetica, sans-serif;
+    font-family: sans-serif;
     background-color: #eee;
     color: #333;
 }
 
-main {
-    max-width: 800px;
-}
-
 ul {
     padding-left: var(--main-margin);
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    text-align: center;
+}
+
+tr:nth-child(even) {
+    background-color: #eee;
+}
+
+td {
+    padding: var(--half-margin) var(--main-margin);
 }
 
 .error {
@@ -41,7 +53,7 @@ ul {
 }
 
 .box {
-    margin: var(--main-margin) auto;
+    margin: var(--main-margin);
     padding: var(--main-margin);
     background-color: #fff;
     border: solid 1px #ccc;
@@ -53,6 +65,7 @@ ul {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin: var(--main-margin) 0;
 }
 
 .box header h1 {
