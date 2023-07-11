@@ -1,7 +1,5 @@
 use chrono::NaiveDateTime;
-use sqlx::{AnyConnection, Executor as _};
-
-use super::services::Service;
+use sqlx::AnyConnection;
 
 #[derive(Clone, Copy, Debug)]
 pub enum Severity {
@@ -176,11 +174,6 @@ impl Intervention {
         Ok(id)
     }
 
-    pub async fn remove_all(conn: &mut AnyConnection) -> anyhow::Result<()> {
-        conn.execute("DELETE FROM interventions").await?;
-        Ok(())
-    }
-
     pub async fn get_all(conn: &mut AnyConnection) -> anyhow::Result<Vec<Intervention>> {
         let interventions = sqlx::query_as::<_, Intervention>(
             r#"
@@ -226,21 +219,6 @@ impl Intervention {
         .fetch_all(conn)
         .await?;
         Ok(ids)
-    }
-
-    pub async fn get_services(id: i64, conn: &mut AnyConnection) -> anyhow::Result<Vec<Service>> {
-        let services = sqlx::query_as::<_, Service>(
-            r#"
-            SELECT s.id, s.name, s.url FROM services AS s, interventions_services AS is_, interventions
-            WHERE interventions.id = $1
-            AND s.id == is_.service_id
-            AND interventions.id == is_.intervention_id
-        "#,
-        )
-        .bind(id)
-        .fetch_all(conn)
-        .await?;
-        Ok(services)
     }
 
     pub fn is_ongoing(&self, now: NaiveDateTime) -> bool {
