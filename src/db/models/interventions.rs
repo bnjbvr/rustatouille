@@ -46,6 +46,7 @@ impl Severity {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Status {
+    Planned,
     Ongoing,
     UnderSurveillance,
     Identified,
@@ -56,6 +57,7 @@ impl Status {
     // TODO i18n???
     pub fn label(&self) -> &str {
         match *self {
+            Status::Planned => "Planned",
             Status::Ongoing => "Ongoing",
             Status::UnderSurveillance => "Under surveillance",
             Status::Identified => "Identified",
@@ -65,6 +67,7 @@ impl Status {
 
     fn to_db_str(self) -> &'static str {
         match self {
+            Self::Planned => "planned",
             Self::Ongoing => "ongoing",
             Self::UnderSurveillance => "under_surveillance",
             Self::Identified => "identified",
@@ -74,6 +77,7 @@ impl Status {
 
     fn from_db_str(s: &str) -> anyhow::Result<Self> {
         Ok(match s {
+            "planned" => Self::Planned,
             "ongoing" => Self::Ongoing,
             "under_surveillance" => Self::UnderSurveillance,
             "identified" => Self::Identified,
@@ -231,10 +235,10 @@ impl Intervention {
         Ok(ids)
     }
 
-    pub fn is_ongoing(&self, now: NaiveDateTime) -> bool {
-        self.start_date < now && self.status != Status::Resolved
+    pub fn is_ongoing(&self) -> bool {
+        self.status == Status::Ongoing
     }
-    pub fn is_planned(&self, now: NaiveDateTime) -> bool {
-        self.start_date >= now && self.status != Status::Resolved
+    pub fn is_planned(&self) -> bool {
+        self.status == Status::Planned
     }
 }

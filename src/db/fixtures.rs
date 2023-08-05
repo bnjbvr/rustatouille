@@ -71,7 +71,7 @@ pub async fn insert_fixtures(conn: &mut AnyConnection) -> anyhow::Result<()> {
             end_date: None,
             status,
             severity,
-            is_planned: false,
+            is_planned: status == Status::Planned,
             title: title.to_owned(),
             description: Some(LOREM_IPSUM.to_owned()),
         };

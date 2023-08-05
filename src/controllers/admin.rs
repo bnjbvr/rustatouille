@@ -208,8 +208,9 @@ pub struct FormIntervention {
     title: String,
     description: String,
     start_date: NaiveDateTime,
-    estimated_duration: u64,
+    estimated_duration: Option<i64>,
     severity: Severity,
+    status: Status,
     services: Vec<u64>,
 }
 
@@ -226,6 +227,7 @@ impl TryFrom<axum::body::Bytes> for FormIntervention {
         let mut estimated_duration = None;
         let mut severity = None;
         let mut services = Vec::new();
+        let mut status = None;
 
         for (key, val) in form_urlencoded::parse(&value) {
             match &*key {
@@ -234,13 +236,20 @@ impl TryFrom<axum::body::Bytes> for FormIntervention {
                 "start-date" => {
                     start_date = Some(NaiveDateTime::parse_from_str(&val, "%Y-%m-%dT%H:%M")?)
                 }
-                "estimated-duration" => estimated_duration = Some(val.parse()?),
+                "estimated-duration" => estimated_duration = val.parse().ok(),
                 "severity" => {
                     severity = Some(match &*val {
                         "partial-outage" => Severity::PartialOutage,
                         "full-outage" => Severity::FullOutage,
                         "performance-issue" => Severity::PerformanceIssue,
                         _ => anyhow::bail!("invalid severity"),
+                    })
+                }
+                "status" => {
+                    status = Some(match &*val {
+                        "ongoing" => Status::Ongoing,
+                        "planned" => Status::Planned,
+                        _ => anyhow::bail!("invalid status"),
                     })
                 }
                 "services" => services.push(val.parse()?),
@@ -252,7 +261,8 @@ impl TryFrom<axum::body::Bytes> for FormIntervention {
             title: title.context("missing title")?,
             description: description.context("missing description")?,
             start_date: start_date.context("missing start date")?,
-            estimated_duration: estimated_duration.context("missing estimated_duration")?,
+            estimated_duration,
+            status: status.context("missing status")?,
             severity: severity.context("missing severity")?,
             services,
         })
@@ -324,12 +334,12 @@ pub(crate) async fn create_intervention(
         id: None,
         title: payload.title,
         description: Some(payload.description),
-        status: Status::Identified,
+        status: payload.status,
         start_date: payload.start_date,
-        estimated_duration: Some(payload.estimated_duration as i64),
+        estimated_duration: payload.estimated_duration,
         end_date: None,
         severity: payload.severity,
-        is_planned: false,
+        is_planned: payload.status == Status::Planned,
     };
 
     {
