@@ -8,9 +8,8 @@ body {
 }
 
 body {
-    display: flex;
-    justify-content: center;
-    margin: 0;
+    max-width: 1000px;
+    margin: auto;
     font-family: sans-serif;
     background-color: #eee;
     color: #333;
@@ -36,20 +35,16 @@ td {
 
 .error {
     background-color: #ffebe6;
-    border-color: #febbb2;
-    color: #be291b;
+    border: 1px solid #febbb2;
 }
 
 .warning {
     background-color: #fee7c8;
-    border-color: #fffae6;
-    color: #a34c34;
+    border: 1px solid #fffae6;
 }
 
 .success {
-    background-color: #e3fcef;
-    border-color: #69d183;
-    color: #1f7e48;
+    border: 1px solid lightgrey;
 }
 
 .box {
@@ -94,16 +89,20 @@ td {
 }
 
 .tiles {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-auto-rows: minmax(100px, auto);
+    display: flex;
+    flex-direction: column;
     gap: var(--main-margin);
 }
 
 .tiles > section {
     padding: var(--main-margin);
-    border: solid 1px;
     border-radius: 3px;
+}
+
+.tiles > section > header {
+    margin-top: 0;
+    display: flex;
+    flex-direction: row;
 }
 
 .tiles h3,
@@ -127,7 +126,7 @@ td {
 .ongoing-outage {
     margin: var(--main-margin) 0;
     padding: var(--half-margin) var(--main-margin);
-    border: solid 1px;
+    border: solid 1px inherit;
 }
 
 .badge {
@@ -137,4 +136,24 @@ td {
     text-align: center;
     border-radius: 50%;
     background: #ddd;
+}
+
+ul.ongoing-interventions {
+    margin-top: 1em;
+}
+
+.ongoing-interventions h4 {
+    margin-bottom: 0.5em;
+    margin-top: 0.5em;
+    font-size: 1.2em;
+}
+
+.ongoing-interventions span {
+    display: block;
+}
+
+.ongoing-interventions li {
+    list-style: none;
+    background: white;
+    padding: 0.5em 1em;
 }

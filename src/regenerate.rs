@@ -6,26 +6,34 @@ use crate::{
     AppContext,
 };
 use anyhow::Context as _;
-use chrono::NaiveDateTime;
 use serde::Serialize;
 use std::{collections::BTreeMap, fs, sync::Arc, time::Instant};
 use tokio::sync::mpsc;
 use tracing as log;
 
 #[derive(Serialize)]
-struct ShortInterventionCtx {
+struct ServiceInterventionCtx {
     id: i64,
     title: String,
     start_date: String, // TODO?
+    estimated_duration: String,
+    description: Option<String>,
 }
 
 #[derive(Serialize)]
 struct ServiceCtx {
+    id: i64,
     section_class: String,
     url: String,
     title: String,
-    planned: Vec<ShortInterventionCtx>,
-    ongoing: Vec<ShortInterventionCtx>,
+    planned: Vec<ServiceInterventionCtx>,
+    ongoing: Vec<ServiceInterventionCtx>,
+}
+
+#[derive(Clone, Serialize)]
+struct InterventionServiceDetailsCtx {
+    id: i64,
+    title: String,
 }
 
 #[derive(Clone, Serialize)]
@@ -37,12 +45,13 @@ struct InterventionCtx {
     severity: String,
     estimated_duration: String,
     rendered_description: String,
-    services: Vec<String>,
+    services: Vec<InterventionServiceDetailsCtx>,
 }
 
 #[derive(Serialize)]
 struct RegenerateIndexCtx {
     current_interventions: Vec<InterventionCtx>,
+    current_planned: Vec<InterventionCtx>,
     interventions: Vec<InterventionCtx>,
     services: Vec<ServiceCtx>,
 }
@@ -82,12 +91,15 @@ async fn regenerate_index(ctx: &Arc<AppContext>) -> anyhow::Result<()> {
                     .or_insert_with(Default::default)
                     .push(intervention);
 
-                Ok(services
+                let service = services
                     .iter()
                     .find(|service| service.id.unwrap() == service_id.0)
-                    .context("unknown service with id {sid}")?
-                    .name
-                    .clone())
+                    .context("unknown service with id {sid}")?;
+
+                Ok(InterventionServiceDetailsCtx {
+                    id: service.id.unwrap(),
+                    title: service.name.clone(),
+                })
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
 
@@ -110,8 +122,6 @@ async fn regenerate_index(ctx: &Arc<AppContext>) -> anyhow::Result<()> {
         interventions_ctx.push(ictx);
     }
 
-    let now = NaiveDateTime::from_timestamp_opt(chrono::Utc::now().timestamp(), 0).unwrap();
-
     let mut services_ctx = Vec::with_capacity(services.len());
     for s in &services {
         let (planned, ongoing) = intervention_by_service
@@ -119,11 +129,11 @@ async fn regenerate_index(ctx: &Arc<AppContext>) -> anyhow::Result<()> {
             .map(|interventions| {
                 let planned = interventions
                     .iter()
-                    .filter(|int| int.is_planned(now))
+                    .filter(|int| int.is_planned())
                     .collect();
                 let ongoing = interventions
                     .iter()
-                    .filter(|int| int.is_ongoing(now))
+                    .filter(|int| int.is_ongoing())
                     .collect();
 
                 (planned, ongoing)
@@ -139,25 +149,36 @@ async fn regenerate_index(ctx: &Arc<AppContext>) -> anyhow::Result<()> {
         };
 
         services_ctx.push(ServiceCtx {
+            id: s.id.unwrap(),
             section_class: section_class.to_owned(),
             url: s.url.clone(),
             title: s.name.clone(),
 
             planned: planned
                 .into_iter()
-                .map(|int| ShortInterventionCtx {
+                .map(|int| ServiceInterventionCtx {
                     id: int.id.unwrap(),
                     title: int.title.clone(),
                     start_date: int.start_date.to_string(),
+                    description: int.description.clone(), // TODO markdown
+                    estimated_duration: int
+                        .estimated_duration
+                        .map(|int| format!("{int} minutes")) // TODO i18n
+                        .unwrap_or_else(|| "unknown".to_owned()), // TODO i18n
                 })
                 .collect(),
 
             ongoing: ongoing
                 .into_iter()
-                .map(|int| ShortInterventionCtx {
+                .map(|int| ServiceInterventionCtx {
                     id: int.id.unwrap(),
                     title: int.title.clone(),
                     start_date: int.start_date.to_string(),
+                    description: int.description.clone(), // TODO markdown
+                    estimated_duration: int
+                        .estimated_duration
+                        .map(|int| format!("{int} minutes")) // TODO i18n
+                        .unwrap_or_else(|| "unknown".to_owned()), // TODO i18n
                 })
                 .collect(),
         });
@@ -168,7 +189,19 @@ async fn regenerate_index(ctx: &Arc<AppContext>) -> anyhow::Result<()> {
         .iter()
         .zip(interventions_ctx.iter())
         .filter_map(|(i, ictx)| {
-            if i.is_ongoing(now) {
+            if i.is_ongoing() {
+                Some(ictx.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let current_planned = interventions
+        .iter()
+        .zip(interventions_ctx.iter())
+        .filter_map(|(i, ictx)| {
+            if i.is_planned() {
                 Some(ictx.clone())
             } else {
                 None
@@ -178,6 +211,7 @@ async fn regenerate_index(ctx: &Arc<AppContext>) -> anyhow::Result<()> {
 
     let index_ctx = RegenerateIndexCtx {
         current_interventions: current_interventions_ctx,
+        current_planned,
         interventions: interventions_ctx,
         services: services_ctx,
     };

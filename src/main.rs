@@ -283,7 +283,7 @@ async fn setup_hot_reload(app: Arc<AppContext>) -> anyhow::Result<notify::Recomm
                     });
                 }
             }
-            Err(e) => tracing::warn!("watch error: {e:?}"),
+            Err(e) => log::warn!("watch error: {e:?}"),
         })?;
 
     watcher.watch(&template_dir, RecursiveMode::Recursive)?;

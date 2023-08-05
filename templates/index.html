@@ -1,65 +1,75 @@
 {% extends "base.html" %}
 
-{% block title %}Statuts{% endblock title %}
+{% block title %}Rustatouille - Statuts des services Framasoft{% endblock title %}
 
 {% block body %}
 
-<h1>Services status</h1>
+<h1>État des services Framasoft</h1>
 
-{% for int in current_interventions %}
+{% if current_interventions | length != 0 %}
     <div class="ongoing-outage error">
-    <strong>{{int.title}} is actually on going on {{int.services}}.</strong>
-    Severity: {{int.severity}}, started at {{int.start_date}}, estimated duration
-    {{int.estimated_duration}}.
-    <a href="#intervention-{{int.id}}">Read more</a>
+    Incident en cours sur 
+    {% for int in current_interventions %}
+        {% for s in int.services %}
+        <strong>{{ s.title }}</strong> : {{ int.title }} (<a href="#service-{{s.id}}">voir plus</a>),
+        {% endfor %}
+    {% endfor %}
+    .
     </div>
-{% endfor %}
+{% endif %}
 
-<h2>Monitored services</h2>
+{% if current_planned | length != 0 %}
+    <div class="ongoing-outage warning">
+    Maintenance planifiée sur 
+    {% for int in current_planned %}
+        {% for s in int.services %}
+            <strong>{{ s.title }}</strong> : {{ int.title }} (<a href="#service-{{s.id}}">voir plus</a>),
+        {% endfor %}
+    {% endfor %}
+    .
+    </div>
+{% endif %}
+
+<h2>Liste des services</h2>
 
 <div class="tiles">
     {% for service in services %}
     <section class="{{service.section_class}}">
-        <h3>
-            <a href="{{service.url}}">{{service.title}}</a>
-        </h3>
+        <header>
+            <h3 id="service-{{service.id}}">
+                <a href="{{service.url}}">{{service.title}}</a>
+            </h3>
+            <!-- TODO additionner ongoing+planned ici -->
+            <span>{{service.ongoing | length}} intervention{{ service.ongoing | length |
+            pluralize }}</span>
+        </header>
 
         {% if service.ongoing | length != 0 %}
-            <p>{{service.ongoing | length}} ongoing intervention{{ service.ongoing | length | pluralize }}</p>
-            <ul>
+            <ul class="ongoing-interventions">
                 {% for p in service.ongoing %}
-                    <li><a href="#intervention-{{p.id}}">{{p.title}} ({{p.start_date}})</a></li>
+                    <li>
+                        <h4>{{p.title}}</h4>
+                        <span>Date : {{p.start_date}}</span>
+                        <span>Durée prévue : {{p.estimated_duration}}</span>
+                        <p>{{p.description}}</p>
+                    </li>
                 {% endfor %}
             </ul>
         {% endif %}
 
         {% if service.planned | length != 0 %}
-            <p>{{service.planned | length}} planned intervention{{ service.planned | length | pluralize }}</p>
-            <ul>
+            <ul class="ongoing-interventions">
                 {% for p in service.planned %}
-                    <li><a href="#intervention-{{p.id}}">{{p.title}} ({{p.start_date}})</a></li>
+                    <li>
+                        <h4>{{p.title}}</h4>
+                        <span>Date : {{p.start_date}}</span>
+                        <span>Durée prévue : {{p.estimated_duration}}</span>
+                        <p>{{p.description}}</p>
+                    </li>
                 {% endfor %}
             </ul>
         {% endif %}
     </section>
-    {% endfor %}
-</div>
-
-<h2>Interventions</h2>
-
-<div class="list interventions">
-    {% for int in interventions %}
-        <section>
-            <header>
-                <h3 id="intervention-{{int.id}}">{{ int.title }}</h3>
-                <p>{{ int.start_date }}</p>
-            </header>
-            <p>
-                <em>Severity:</em> <strong class="{{int.severity_class}}">{{int.severity}}</strong>
-                <em>Estimated duration:</em> <strong>{{int.estimated_duration}}</strong>
-            </p>
-            <p>{{ int.rendered_description }}</p>
-        </section>
     {% endfor %}
 </div>
 
