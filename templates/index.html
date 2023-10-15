@@ -6,10 +6,10 @@
 
 <h1>État des services Framasoft</h1>
 
-{% if current_interventions | length != 0 %}
+{% if ongoing | length != 0 %}
     <div class="ongoing-outage error">
     Incident en cours sur 
-    {% for int in current_interventions %}
+    {% for int in ongoing %}
         {% for s in int.services %}
         <strong>{{ s.title }}</strong> : {{ int.title }} (<a href="#service-{{s.id}}">voir plus</a>),
         {% endfor %}
@@ -18,10 +18,10 @@
     </div>
 {% endif %}
 
-{% if current_planned | length != 0 %}
+{% if planned | length != 0 %}
     <div class="ongoing-outage warning">
     Maintenance planifiée sur 
-    {% for int in current_planned %}
+    {% for int in planned %}
         {% for s in int.services %}
             <strong>{{ s.title }}</strong> : {{ int.title }} (<a href="#service-{{s.id}}">voir plus</a>),
         {% endfor %}

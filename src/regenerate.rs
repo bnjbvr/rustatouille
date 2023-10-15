@@ -11,7 +11,8 @@ use std::{collections::BTreeMap, fs, sync::Arc, time::Instant};
 use tokio::sync::mpsc;
 use tracing as log;
 
-#[derive(Serialize)]
+/// Render context for a single intervention on a given service.
+#[derive(Clone, Serialize)]
 struct ServiceInterventionCtx {
     id: i64,
     title: String,
@@ -20,6 +21,7 @@ struct ServiceInterventionCtx {
     description: Option<String>,
 }
 
+/// Render context for a given service.
 #[derive(Serialize)]
 struct ServiceCtx {
     id: i64,
@@ -30,12 +32,14 @@ struct ServiceCtx {
     ongoing: Vec<ServiceInterventionCtx>,
 }
 
+/// Render context for a service associated to a given intervention.
 #[derive(Clone, Serialize)]
 struct InterventionServiceDetailsCtx {
     id: i64,
     title: String,
 }
 
+/// Render context for a given intervention.
 #[derive(Clone, Serialize)]
 struct InterventionCtx {
     id: i64,
@@ -50,8 +54,8 @@ struct InterventionCtx {
 
 #[derive(Serialize)]
 struct RegenerateIndexCtx {
-    current_interventions: Vec<InterventionCtx>,
-    current_planned: Vec<InterventionCtx>,
+    ongoing: Vec<InterventionCtx>,
+    planned: Vec<InterventionCtx>,
     interventions: Vec<InterventionCtx>,
     services: Vec<ServiceCtx>,
 }
@@ -62,11 +66,6 @@ async fn regenerate_index(ctx: &Arc<AppContext>) -> anyhow::Result<()> {
 
     let mut conn = ctx.db_connection.lock().await;
 
-    // TODO sort services like that:
-    // - first, all that have *current* interventions
-    // - second, all that have *planned* interventions
-    // - finally, those that have *no* interventions
-    //
     // Internally within a single category, sort by priority: full outage > partial > performance
     let services = Service::get_all(&mut conn).await?;
 
@@ -88,7 +87,7 @@ async fn regenerate_index(ctx: &Arc<AppContext>) -> anyhow::Result<()> {
             .map(|service_id| {
                 intervention_by_service
                     .entry(service_id)
-                    .or_insert_with(Default::default)
+                    .or_default()
                     .push(intervention);
 
                 let service = services
@@ -103,7 +102,7 @@ async fn regenerate_index(ctx: &Arc<AppContext>) -> anyhow::Result<()> {
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
 
-        let ictx = InterventionCtx {
+        interventions_ctx.push(InterventionCtx {
             id: intervention.id.unwrap(),
             title: intervention.title.clone(),
             start_date: intervention.start_date.to_string(),
@@ -118,35 +117,40 @@ async fn regenerate_index(ctx: &Arc<AppContext>) -> anyhow::Result<()> {
                 .clone()
                 .unwrap_or_else(|| "<???>".to_owned()), // TODO???
             services: service_names,
-        };
-        interventions_ctx.push(ictx);
+        });
     }
 
     let mut services_ctx = Vec::with_capacity(services.len());
     for s in &services {
-        let (planned, ongoing) = intervention_by_service
+        let interventions = intervention_by_service
             .get(&ServiceId(s.id.unwrap()))
-            .map(|interventions| {
-                let planned = interventions
-                    .iter()
-                    .filter(|int| int.is_planned())
-                    .collect();
-                let ongoing = interventions
-                    .iter()
-                    .filter(|int| int.is_ongoing())
-                    .collect();
+            .cloned()
+            .unwrap_or_default();
 
-                (planned, ongoing)
-            })
-            .unwrap_or_else(|| (vec![], vec![]));
-
-        let section_class = if !ongoing.is_empty() {
+        let section_class = if interventions.iter().any(|i| i.is_ongoing()) {
             "error"
-        } else if !planned.is_empty() {
+        } else if interventions.iter().any(|i| i.is_planned()) {
             "warning"
         } else {
             "success"
         };
+
+        let ctx_interventions: Vec<_> = interventions
+            .into_iter()
+            .map(|int| {
+                let int_ctx = ServiceInterventionCtx {
+                    id: int.id.unwrap(),
+                    title: int.title.clone(),
+                    start_date: int.start_date.to_string(),
+                    description: int.description.clone(), // TODO markdown
+                    estimated_duration: int
+                        .estimated_duration
+                        .map(|int| format!("{int} minutes")) // TODO i18n
+                        .unwrap_or_else(|| "unknown".to_owned()), // TODO i18n
+                };
+                (int.is_ongoing(), int_ctx)
+            })
+            .collect();
 
         services_ctx.push(ServiceCtx {
             id: s.id.unwrap(),
@@ -154,68 +158,36 @@ async fn regenerate_index(ctx: &Arc<AppContext>) -> anyhow::Result<()> {
             url: s.url.clone(),
             title: s.name.clone(),
 
-            planned: planned
-                .into_iter()
-                .map(|int| ServiceInterventionCtx {
-                    id: int.id.unwrap(),
-                    title: int.title.clone(),
-                    start_date: int.start_date.to_string(),
-                    description: int.description.clone(), // TODO markdown
-                    estimated_duration: int
-                        .estimated_duration
-                        .map(|int| format!("{int} minutes")) // TODO i18n
-                        .unwrap_or_else(|| "unknown".to_owned()), // TODO i18n
-                })
+            planned: ctx_interventions
+                .iter()
+                .filter_map(|(is_ongoing, int)| (!is_ongoing).then_some(int))
+                .cloned()
                 .collect(),
 
-            ongoing: ongoing
+            ongoing: ctx_interventions
                 .into_iter()
-                .map(|int| ServiceInterventionCtx {
-                    id: int.id.unwrap(),
-                    title: int.title.clone(),
-                    start_date: int.start_date.to_string(),
-                    description: int.description.clone(), // TODO markdown
-                    estimated_duration: int
-                        .estimated_duration
-                        .map(|int| format!("{int} minutes")) // TODO i18n
-                        .unwrap_or_else(|| "unknown".to_owned()), // TODO i18n
-                })
+                .filter_map(|(is_ongoing, int)| is_ongoing.then_some(int))
                 .collect(),
         });
     }
 
     // Current interventions are sorted because interventions are sorted.
-    let current_interventions_ctx = interventions
-        .iter()
-        .zip(interventions_ctx.iter())
-        .filter_map(|(i, ictx)| {
-            if i.is_ongoing() {
-                Some(ictx.clone())
-            } else {
-                None
-            }
-        })
-        .collect();
+    let mut ongoing_ctx = Vec::new();
+    let mut planned_ctx = Vec::new();
+    for (int, ctx) in interventions.iter().zip(interventions_ctx.iter()) {
+        if int.is_ongoing() {
+            ongoing_ctx.push(ctx.clone());
+        } else {
+            planned_ctx.push(ctx.clone());
+        }
+    }
 
-    let current_planned = interventions
-        .iter()
-        .zip(interventions_ctx.iter())
-        .filter_map(|(i, ictx)| {
-            if i.is_planned() {
-                Some(ictx.clone())
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    let index_ctx = RegenerateIndexCtx {
-        current_interventions: current_interventions_ctx,
-        current_planned,
+    let index_ctx = tera::Context::from_serialize(RegenerateIndexCtx {
+        ongoing: ongoing_ctx,
+        planned: planned_ctx,
         interventions: interventions_ctx,
         services: services_ctx,
-    };
-    let index_ctx = tera::Context::from_serialize(index_ctx)?;
+    })?;
 
     let index_content = ctx
         .templates
