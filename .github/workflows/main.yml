@@ -34,3 +34,5 @@ jobs:
       - run: cargo clippy --all --all-features -- -D warnings
 
       - run: cargo test --workspace --verbose
+
+      - uses: bnjbvr/cargo-machete@main
