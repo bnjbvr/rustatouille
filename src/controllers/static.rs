@@ -48,7 +48,7 @@ pub(crate) async fn get(
     Path(path): Path<String>,
     Extension(ctx): Extension<Arc<AppContext>>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let mut path = ctx.config.cache_dir.join(&path);
+    let mut path = ctx.config.cache_dir.join(path);
     if !path.exists() || !path.is_file() {
         let mut found = false;
         for p in &["index.htm", "index.html"] {

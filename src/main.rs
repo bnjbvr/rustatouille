@@ -150,7 +150,7 @@ async fn real_main(args: Vec<String>) -> anyhow::Result<()> {
     // Start the database.
     let mut conn = db::open(&config.db_connection_string).await?;
 
-    if let Some(first_arg) = args.get(0) {
+    if let Some(first_arg) = args.first() {
         match first_arg.as_str() {
             "fixtures" => {
                 insert_fixtures(&mut conn).await?;
