@@ -19,3 +19,5 @@ actual static HTTP server in the cache directory (e.g. using python3, with `pyth
 
 The main admin page is available at `/admin`. The generated content is available at the root
 endpoint `/`.
+
+If you need dummy data for development purpose, run `cargo run -- fixtures` and then `cargo run -- serve`
