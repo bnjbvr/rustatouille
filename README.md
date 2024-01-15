@@ -8,6 +8,7 @@ rustatouille is an incident page system, entirely written in Rust!
 
 - Make sure that you've installed [rust](https://rustup.rs/), and that you're using the latest
   version.
+- Also install the mold linker `apt install mold`
 - Tweak environment variables (see the `.env` for an explanation of possible values) as you need.
 - Start `cargo run`.
 
