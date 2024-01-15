@@ -1,10 +1,14 @@
 use chrono::NaiveDateTime;
+use serde::Deserialize;
 use sqlx::AnyConnection;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Deserialize, Clone, Copy, Debug)]
 pub enum Severity {
+    #[serde(rename = "partial-outage")]
     PartialOutage,
+    #[serde(rename = "full-outage")]
     FullOutage,
+    #[serde(rename = "performance-issue")]
     PerformanceIssue,
 }
 
@@ -44,12 +48,17 @@ impl Severity {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
 pub enum Status {
+    #[serde(rename = "planned")]
     Planned,
+    #[serde(rename = "ongoing")]
     Ongoing,
+    #[serde(rename = "under-surveillance")]
     UnderSurveillance,
+    #[serde(rename = "identified")]
     Identified,
+    #[serde(rename = "resolved")]
     Resolved,
 }
 

@@ -1,4 +1,3 @@
-use anyhow::Context;
 use axum::extract::RawForm;
 use axum::response::Response;
 use axum::{
@@ -8,7 +7,6 @@ use axum::{
 };
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
-use std::error::Error as _;
 
 use std::sync::Arc;
 use tracing as log;
@@ -26,10 +24,7 @@ macro_rules! try500 {
         match $val {
             Ok(r) => r,
             Err(err) => {
-                log::error!("error when {}: {}", $ctx, err,);
-                if let Some(source) = err.source() {
-                    log::error!("> caused by: {source}");
-                }
+                log::error!("error when {}: {:?}", $ctx, err,);
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     Html("Ohnoes, something went wrong!").into_response(),
@@ -204,69 +199,17 @@ pub(crate) async fn create_service(
     redirect("/admin")
 }
 
+#[derive(Deserialize)]
 pub struct FormIntervention {
     title: String,
     description: String,
-    start_date: NaiveDateTime,
+    #[serde(rename = "start-date")]
+    start_date: String,
+    #[serde(rename = "estimated-duration")]
     estimated_duration: Option<i64>,
     severity: Severity,
     status: Status,
     services: Vec<u64>,
-}
-
-/// Very manually parse the content of the intervention form, since sending multiple values with
-/// the same key may or may not be valid for urlencoding sequences.
-/// TODO my eyes bleed, fix/fork serde_urlencoded
-impl TryFrom<axum::body::Bytes> for FormIntervention {
-    type Error = anyhow::Error;
-
-    fn try_from(value: axum::body::Bytes) -> Result<Self, Self::Error> {
-        let mut title = None;
-        let mut description = None;
-        let mut start_date = None;
-        let mut estimated_duration = None;
-        let mut severity = None;
-        let mut services = Vec::new();
-        let mut status = None;
-
-        for (key, val) in form_urlencoded::parse(&value) {
-            match &*key {
-                "title" => title = Some(val.to_string()),
-                "description" => description = Some(val.to_string()),
-                "start-date" => {
-                    start_date = Some(NaiveDateTime::parse_from_str(&val, "%Y-%m-%dT%H:%M")?)
-                }
-                "estimated-duration" => estimated_duration = val.parse().ok(),
-                "severity" => {
-                    severity = Some(match &*val {
-                        "partial-outage" => Severity::PartialOutage,
-                        "full-outage" => Severity::FullOutage,
-                        "performance-issue" => Severity::PerformanceIssue,
-                        _ => anyhow::bail!("invalid severity"),
-                    })
-                }
-                "status" => {
-                    status = Some(match &*val {
-                        "ongoing" => Status::Ongoing,
-                        "planned" => Status::Planned,
-                        _ => anyhow::bail!("invalid status"),
-                    })
-                }
-                "services" => services.push(val.parse()?),
-                _ => {}
-            }
-        }
-
-        Ok(FormIntervention {
-            title: title.context("missing title")?,
-            description: description.context("missing description")?,
-            start_date: start_date.context("missing start date")?,
-            estimated_duration,
-            status: status.context("missing status")?,
-            severity: severity.context("missing severity")?,
-            services,
-        })
-    }
 }
 
 pub(crate) async fn create_intervention_form(
@@ -319,7 +262,7 @@ pub(crate) async fn create_intervention(
     Extension(ctx): Extension<Arc<AppContext>>,
     RawForm(request_bytes): RawForm,
 ) -> impl IntoResponse {
-    let payload = match FormIntervention::try_from(request_bytes) {
+    let payload: FormIntervention = match serde_html_form::from_bytes(&request_bytes) {
         Ok(payload) => payload,
         Err(err) => {
             log::error!("error when parsing new-intervention request: {err:#}");
@@ -330,12 +273,17 @@ pub(crate) async fn create_intervention(
         }
     };
 
+    let start_date = try500!(
+        NaiveDateTime::parse_from_str(&payload.start_date, "%Y-%m-%dT%H:%M"),
+        "converting start date to NaiveDateTime"
+    );
+
     let intervention = Intervention {
         id: None,
         title: payload.title,
         description: Some(payload.description),
         status: payload.status,
-        start_date: payload.start_date,
+        start_date,
         estimated_duration: payload.estimated_duration,
         end_date: None,
         severity: payload.severity,
