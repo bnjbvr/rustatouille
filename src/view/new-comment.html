@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title></title>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="stylesheet" type="text/css" href="./style.css" />
+    </head>
+    <body>
+        <main class="box">
+            <header>
+                <h1>New comment on {intervention.title}</h1>
+            </header>
+            <form action="/admin/api/comment" method="post">
+                <p>
+                    <label for="description-field">Description:</label><br />
+                    <textarea id="description-field" name="description" required></textarea>
+                </p>
+                <p>
+                    <label for="services-field">Impacted services:</label><br />
+                    <select id="services-field" name="services" required>
+                        {{SERVICES}}
+                    </select>
+                </p>
+                <p class="center">
+                    <input type="submit" class="btn" value="Add a comment" />
+                </p>
+            </form>
+        </main>
+    </body>
+</html>

@@ -75,17 +75,28 @@ td {
     text-align: center;
 }
 
-.list header {
+.list > section {
     margin: var(--main-margin) 0;
 }
 
-.list > section:not(:last-child)::after {
+.intervention {
+    padding: var(--main-margin);
+    border: solid 1px #ccc;
+    border-radius: 3px;
+}
+
+.light-list > section:not(:last-child)::after {
     content: " ";
     display: block;
     width: 400px;
     margin: auto;
     margin-bottom: var(--main-margin);
     border-bottom: solid 1px #ddd;
+}
+
+.comments {
+    background-color: #eee;
+    padding: var(--main-margin);
 }
 
 .tiles {
