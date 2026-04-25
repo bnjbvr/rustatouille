@@ -128,7 +128,7 @@ fn copy_static_files_to_cache_dir(config: &AppConfig) -> anyhow::Result<()> {
         let path = dir_entry.path();
         if path
             .extension()
-            .map_or(false, |ext| ext == "css" || ext == "js")
+            .is_some_and(|ext| ext == "css" || ext == "js")
         {
             let Some(file_name) = path.file_name() else {
                 log::warn!("Static file doesn't have a name??");
